@@ -16,9 +16,7 @@ UUIDString = Annotated[
 
 
 class UserRole(Enum):
-    CONSUMER = "consumer"
-    PUBLISHER = "publisher"
-    MODERATOR = "moderator"
+    USER = "user"
     ADMIN = "admin"
 
 
@@ -86,8 +84,9 @@ class AppUser(CamelModel):
     name: str
     email: EmailStr
     password: str
+    subscription: str
+    billing_period: str
     promo: bool = False
-    role_requested: str | None = None
 
 
 class UnverifiedUser(CamelModel):
@@ -102,6 +101,11 @@ class UnverifiedUser(CamelModel):
 
 class DbUser(User):
     password_hash: str
+
+    linked_stripe_id: str | None = None
+    requested_subscription: str | None = None
+    requested_billing_period: str | None = None
+    promo: bool = False
 
 
 class DbUserToken(BaseModel):

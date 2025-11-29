@@ -33,7 +33,6 @@ from python_api.sso.apple import AppleSSORequest
 
 from python_api import dependencies
 
-from python_api.Error import FileNotFoundException, NotFoundExceptionGeneral
 from python_api.routers import (
     dashboard,
     users,
@@ -71,8 +70,8 @@ USER_ROLES = [UserRole[r] for r in UserRole.__members__]
 origins = [
     "https://admin.exchequer.io",
     "https://exchequer.io",
-    "http://localhost:3000",
-    "http://localhost:8000",
+    "http://localhost:3040",
+    "http://localhost:8040",
     "http://localhost:8081",
 ]
 
@@ -90,41 +89,6 @@ Taken from https://pyinstrument.readthedocs.io/en/latest/guide.html#profile-a-we
 with small improvements.
 
 """
-
-if settings.environment == "development":
-    from pyinstrument import Profiler
-    from pyinstrument.renderers.html import HTMLRenderer
-    from pyinstrument.renderers.speedscope import SpeedscopeRenderer
-    from typing import Callable
-
-    @app.middleware("http")
-    async def profile_request(request: Request, call_next: Callable):
-        # we map a profile type to a file extension, as well as a pyinstrument profile renderer
-        profile_type_to_ext = {"html": "html", "speedscope": "speedscope.json"}
-        profile_type_to_renderer = {
-            "html": HTMLRenderer,
-            "speedscope": SpeedscopeRenderer,
-        }
-
-        # if the `profile=true` HTTP query argument is passed, we profile the request
-        if request.query_params.get("profile", False):
-            # The default profile format is speedscope
-            profile_type = request.query_params.get("profile_format", "speedscope")
-
-            # we profile the request along with all additional middlewares, by interrupting
-            # the program every 1ms1 and records the entire stack at that point
-            with Profiler(interval=0.001, async_mode="enabled") as profiler:
-                response = await call_next(request)
-
-            # we dump the profiling into a file
-            extension = profile_type_to_ext[profile_type]
-            renderer = profile_type_to_renderer[profile_type]()
-            with open(f"profile.{extension}", "w") as out:
-                out.write(profiler.output(renderer=renderer))
-            return response
-
-        # Proceed without profiling
-        return await call_next(request)
 
 
 @app.get("/test", include_in_schema=False)
@@ -528,15 +492,10 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    access_token = ""
-    refresh_token = ""
-    token_type = ""
-
-    if user.is_verified is True:
-        access_token = create_access_token_from_user(settings, user)
-        refresh_token_obj = await users.insert_new_refresh_token(str(user.id))
-        refresh_token = refresh_token_obj.refresh_token
-        token_type = "bearer"
+    access_token = create_access_token_from_user(settings, user)
+    refresh_token_obj = await users.insert_new_refresh_token(str(user.id))
+    refresh_token = refresh_token_obj.refresh_token
+    token_type = "bearer"
 
     if set_cookie:
         response.set_cookie(
@@ -621,4 +580,4 @@ app.include_router(app_router)
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+    uvicorn.run(app, host="0.0.0.0", port=8040, log_level="info")

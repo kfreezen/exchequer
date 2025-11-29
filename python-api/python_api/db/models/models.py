@@ -117,6 +117,30 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
     deleted_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
 
+    linked_stripe_id: Str = mapped_column(TEXT, nullable=True, unique=True)
+
+    requested_subscription: Str = mapped_column(TEXT, nullable=True)
+    requested_billing_period: Str = mapped_column(TEXT, nullable=True)
+
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+
+    id: Str = mapped_column(UUID, primary_key=True)
+
+    user_id: Str = mapped_column(
+        UUID,
+        ForeignKey("users.id", name="subscription_user_fkey", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    stripe_subscription_id: Str = mapped_column(TEXT, unique=True, nullable=True)
+    status: Str = mapped_column(TEXT, nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
+
 
 class UserSubscriptionAction(Base):
     __tablename__ = "user_subscription_actions"
@@ -226,8 +250,8 @@ class AutomatedEmail(Base):
     sent_at: Int = mapped_column(BIGINT, nullable=True)
 
 
-class UserSubscription(Base):
-    __tablename__ = "user_subscriptions"
+class UserEmailSubscription(Base):
+    __tablename__ = "user_email_subscriptions"
 
     id: Int = primary_key(autoincrement=True)
 
@@ -243,35 +267,109 @@ class UserSubscription(Base):
     email_type: Str = mapped_column(TEXT, nullable=False)
 
 
+class Account(Base):
+    __tablename__ = "accounts"
+
+    id: Str = mapped_column(UUID, primary_key=True)
+
+    name: Str = mapped_column(TEXT)
+    user_id: Str = mapped_column(
+        UUID,
+        ForeignKey("users.id", name="account_user_fkey", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    entity_id: Str = mapped_column(
+        UUID,
+        ForeignKey("entities.id", name="account_entity_fkey", ondelete="CASCADE"),
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
+
+
+class Entity(Base):
+    __tablename__ = "entities"
+
+    id: Str = mapped_column(UUID, primary_key=True)
+
+    user_id: Str = mapped_column(
+        UUID,
+        ForeignKey("users.id", name="entity_user_fkey", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    type: Str = mapped_column(TEXT)
+    name: Str = mapped_column(TEXT)
+
+    created_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
+
+
+class Envelope(Base):
+    __tablename__ = "envelopes"
+
+    id: Str = mapped_column(UUID, primary_key=True)
+
+    user_id: Str = mapped_column(
+        UUID,
+        ForeignKey("users.id", name="envelope_user_fkey", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    entity_id: Str = mapped_column(
+        UUID,
+        ForeignKey("entities.id", name="envelope_entity_fkey", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    name: Str = mapped_column(TEXT)
+
+    # Eventually will have targets, etc.
+
+    created_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
+
+
 class Transaction(Base):
     __tablename__ = "transactions"
 
     id: Str = mapped_column(UUID, primary_key=True)
+
     user_id: Str = mapped_column(
         UUID,
-        ForeignKey("users.id", name="transaction_user_id_fkey", ondelete="SET NULL"),
+        ForeignKey("users.id", name="transaction_user_fkey", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    entity_id: Str = mapped_column(
+        UUID,
+        ForeignKey("entities.id", name="transaction_entity_fkey", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    account_id: Str = mapped_column(
+        UUID,
+        ForeignKey("accounts.id", name="transaction_account_fkey", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    envelope_id: Str = mapped_column(
+        UUID,
+        ForeignKey(
+            "envelopes.id", name="transaction_envelope_fkey", ondelete="SET NULL"
+        ),
         nullable=True,
     )
 
-    source: Str = text_column()
-    transaction_id: Str = text_column(nullable=True)
-    product_id: Str = text_column(nullable=True)
-    price: Mapped[Decimal] = mapped_column(NUMERIC, nullable=True)
-    tax_percentage: Mapped[Decimal] = mapped_column(NUMERIC, nullable=True)
-    commission_percentage: Mapped[Decimal] = mapped_column(NUMERIC, nullable=True)
-    takehome_percentage: Mapped[Decimal] = mapped_column(NUMERIC, nullable=True)
-    takehome_amount: Mapped[Decimal] = mapped_column(NUMERIC, nullable=False)
+    amount: Mapped[Decimal] = mapped_column(NUMERIC(12, 2), nullable=False)
+    date: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=False)
+    description: Str = mapped_column(TEXT, nullable=True)
 
-    created_at: Int = mapped_column(BIGINT, nullable=False, index=True)
-    transacted_at: Int = mapped_column(BIGINT, nullable=True, index=True)
-
-    # applied_at helps us track when to apply a transaction to a user's account.
-    # this way, we can create amortization transactions right away.
-    applied_at: Int = mapped_column(BIGINT, nullable=True, index=True)
-
-    amortized_transaction_id: Str = mapped_column(UUID, nullable=True)
-    currency: Str = text_column(nullable=True)
-
-    __table_args__ = (
-        UniqueConstraint("transaction_id", "source", name="uq_transaction_id_source"),
+    created_in_exchequer_at: Mapped[datetime] = mapped_column(
+        TZ_TIMESTAMP, nullable=True
+    )
+    updated_in_exchequer_at: Mapped[datetime] = mapped_column(
+        TZ_TIMESTAMP, nullable=True
     )

@@ -1,17 +1,10 @@
-from logging import getLogger
 import asyncio
 from datetime import datetime
-import logging
-import types
 from functools import wraps
-from typing import Iterable
 import humps
 from pydantic import BaseModel
-from pypika import Query, Table
-from pypika.queries import QueryBuilder
 
 from python_api.settings import Settings
-from python_api.models.pypika import Order
 
 
 def cache(timeout=60.0):
@@ -145,25 +138,3 @@ class Repository:
 
         sort_list = sort_list or []
         return {allowed[s[0]]: s[1] for s in sort_list if s[0] in allowed}
-
-    def _apply_sort_query(
-        self,
-        q: QueryBuilder,
-        sort_dict: dict[str, str],
-        nulls_last: bool = True,
-        needs_groupby: bool = False,
-    ) -> QueryBuilder:
-        for k, v in sort_dict.items():
-            if nulls_last:
-                v += " NULLS LAST"
-            if isinstance(k, tuple):
-                tbl = Table(k[0])
-                q = q.orderby(tbl.field(k[1]), order=Order(v))
-                if needs_groupby:
-                    q = q.groupby(tbl.field(k[1]))
-            else:
-                q = q.orderby(k, order=Order(v))
-                if needs_groupby:
-                    q = q.groupby(k)
-
-        return q

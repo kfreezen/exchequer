@@ -37,6 +37,7 @@ def create_access_token_from_user(
             "roles": [r.value for r in user.roles],
             "fresh": fresh,
             "restricted": user.restricted,
+            "verified": user.is_verified,
         },
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )

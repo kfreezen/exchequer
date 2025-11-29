@@ -158,9 +158,37 @@ class UserRepository(Repository):
             await cur.execute(
                 """
                 INSERT INTO users
-                (id, email, name, roles, is_verified, password_hash, created_at, updated_at, restricted)
+                (
+                id,
+                email,
+                name,
+                roles,
+                is_verified,
+                password_hash,
+                created_at,
+                updated_at,
+                restricted,
+                linked_stripe_id,
+                requested_subscription,
+                requested_billing_period,
+                promo
+                )
                 VALUES
-                (%(id)s, %(email)s, %(name)s, %(roles)s, %(is_verified)s, %(password_hash)s, %(created_at)s, %(updated_at)s, %(restricted)s)
+                (
+                %(id)s,
+                %(email)s,
+                %(name)s,
+                %(roles)s,
+                %(is_verified)s,
+                %(password_hash)s,
+                %(created_at)s,
+                %(updated_at)s,
+                %(restricted)s,
+                %(linked_stripe_id)s,
+                %(requested_subscription)s,
+                %(requested_billing_period)s,
+                %(promo)s
+                )
                 RETURNING id;
                 """,
                 {

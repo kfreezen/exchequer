@@ -43,8 +43,8 @@ class Settings(BaseSettings):
     redis_url: str = "redis://redis:6379/0"
     anthropic_api_key: str = ""
 
-    stripe_api_key: str = "You find this in the Stripe dashboard"
-    stripe_signing_secret: str = "You find this in the Stripe dashboard"
+    stripe_public_key: str = "You find this in the Stripe dashboard"
+    stripe_secret_key: str = "You find this in the Stripe dashboard"
 
     log_level: str = "INFO"
 

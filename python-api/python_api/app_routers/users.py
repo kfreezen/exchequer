@@ -1,6 +1,6 @@
 from datetime import datetime, timezone, timedelta
 from typing import Annotated
-
+import stripe
 
 import fastapi
 from fastapi import APIRouter, Body, status, Depends, Response, Query, Request
@@ -8,8 +8,6 @@ from fastapi.exceptions import HTTPException
 from fastapi.encoders import jsonable_encoder
 from httpx import HTTPStatusError
 from psycopg.errors import UniqueViolation
-from typesense.exceptions import ObjectNotFound
-from python_api.Error import FileNotFoundException
 from python_api.dependencies import (
     AppleSSODep,
     BucketStorageDep,
@@ -181,11 +179,11 @@ async def get_user_token(
     response_model=User,
 )
 async def create_user(
+    settings: SettingsDep,
     user: AppUser,
     users: UserRepositoryDep,
     mailer: MailerDep,
     email_gen: EmailGeneratorDep,
-    x_app_platform: str | None = fastapi.Header(None),
 ):
     # Check if user email already exist
     email_user = await users.get_user_by_email(user.email)
@@ -199,16 +197,29 @@ async def create_user(
     db_user = DbUser(
         name=user.name,
         email=user.email,
+        requested_subscription=user.subscription,
+        requested_billing_period=user.billing_period,
+        promo=user.promo,
         is_verified=False,
         password_hash=users.get_password_hash(user.password),
     )
 
+    try:
+        customer = stripe.Customer.create(
+            email=db_user.email,
+            name=db_user.name,
+            metadata={"user_id": str(db_user.id)},
+        )
+        db_user.linked_stripe_id = customer.id
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Error creating user",
+        ) from e
+
     # Add user to db
     if db_user.roles == []:
-        if user.role_requested == UserRole.CONSUMER.value:
-            db_user.roles = [UserRole.CONSUMER]
-        elif user.role_requested == UserRole.PUBLISHER.value:
-            db_user.roles = [UserRole.PUBLISHER]
+        db_user.roles = [UserRole.USER]
 
     try:
         db_user_id = await users.insert_user(db_user)
@@ -231,7 +242,25 @@ async def create_user(
 
     mailer.sendmail(to=user.email, subject=subject, mail=text, html=html)
 
-    return await users.get_user_by_id(db_user_id)
+    access_token = ""
+    refresh_token = ""
+    token_type = ""
+
+    db_user = await users.get_user_by_id(db_user_id)
+    if db_user:
+        access_token = create_access_token_from_user(settings, db_user)
+        refresh_token_obj = await users.insert_new_refresh_token(str(db_user.id))
+        refresh_token = refresh_token_obj.refresh_token
+        token_type = "bearer"
+
+    ret = {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": token_type,
+        "user": users.from_db_user(db_user),
+    }
+
+    return ret
 
 
 @active_user_router.put("/{id}/password", description="Update password")

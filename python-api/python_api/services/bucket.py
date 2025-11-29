@@ -8,9 +8,6 @@ import io
 
 import starlette
 
-from python_api.Error import FileNotFoundException
-from PIL import Image
-
 SupportedUploads = Literal["attachments"]
 SupportedDownloads = Literal["attachments"]
 

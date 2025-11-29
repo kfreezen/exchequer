@@ -7,6 +7,7 @@ from redis.asyncio import Redis
 from jwcrypto.common import JWException
 
 import os
+import stripe
 
 from fastapi import Header, Query, Request, status, Response
 from python_api.sso import InvalidIDToken
@@ -14,29 +15,20 @@ from python_api.sso import InvalidIDToken
 from python_api.sso.google import GoogleSSO
 from python_api.user_errors import UserErrors
 
-# Hacking FastAPI's dependency system for celery.
-# This is so ugly.
-if os.getenv("USE_FAST_DEPENDS", None):
-    from fast_depends import Depends
-else:
-    from fastapi import Depends
+from fastapi import Depends
 
 from fastapi.exceptions import HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.security import HTTPBearer
 import httpx
 from psycopg.rows import DictRow, dict_row
-from psycopg import Connection, AsyncConnection
+from psycopg import AsyncConnection
 from jwcrypto import jwk, jwt
 from jwcrypto.jws import InvalidJWSSignature
-
-
-from typesense import Client as TypesenseClient
 
 from python_api.db_conn import LazyConnectionContextManagerAsync
 
 from python_api.mail import EmailGenerator, Mailer
-from python_api.repositories.search import SearchRepository
 from python_api.repositories.users import UserRepository
 from python_api.repositories.automated_emails import AutomatedEmails
 from python_api.repositories.transactions import TransactionsRepository
@@ -53,6 +45,10 @@ from .settings import Settings
 
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
 import psycopg_pool
+
+settings = Settings()
+
+stripe.api_key = settings.stripe_secret_key
 
 ALGORITHM = "RS256"
 
