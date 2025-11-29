@@ -132,6 +132,7 @@ class Subscription(Base):
         UUID,
         ForeignKey("users.id", name="subscription_user_fkey", ondelete="CASCADE"),
         nullable=False,
+        unique=True,
     )
 
     stripe_subscription_id: Str = mapped_column(TEXT, unique=True, nullable=True)
@@ -267,28 +268,6 @@ class UserEmailSubscription(Base):
     email_type: Str = mapped_column(TEXT, nullable=False)
 
 
-class Account(Base):
-    __tablename__ = "accounts"
-
-    id: Str = mapped_column(UUID, primary_key=True)
-
-    name: Str = mapped_column(TEXT)
-    user_id: Str = mapped_column(
-        UUID,
-        ForeignKey("users.id", name="account_user_fkey", ondelete="CASCADE"),
-        nullable=False,
-    )
-
-    entity_id: Str = mapped_column(
-        UUID,
-        ForeignKey("entities.id", name="account_entity_fkey", ondelete="CASCADE"),
-        nullable=True,
-    )
-
-    created_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
-
-
 class Entity(Base):
     __tablename__ = "entities"
 
@@ -324,6 +303,7 @@ class Envelope(Base):
         nullable=False,
     )
 
+    type: Str = mapped_column(TEXT, index=True)
     name: Str = mapped_column(TEXT)
 
     # Eventually will have targets, etc.

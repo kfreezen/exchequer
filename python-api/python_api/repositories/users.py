@@ -9,6 +9,9 @@ from humps import camelize
 from passlib.context import CryptContext
 from passlib.exc import UnknownHashError
 
+from python_api.models.entities import Entity
+from python_api.models.envelopes import Envelope
+from python_api.models.subscriptions import Subscription
 from python_api.models.users import (
     AppUserUpdate,
     DbUser,
@@ -17,6 +20,7 @@ from python_api.models.users import (
     SsoUser,
     UnverifiedUser,
     AdminUserViewModel,
+    UserWithInfo,
 )
 from python_api.models.emails import EmailType
 
@@ -215,10 +219,9 @@ class UserRepository(Repository):
 
     async def delete_user(self, user_id: str):
         async with self.db.cursor() as cur:
-            # Delete from user_entitlements
             await cur.execute(
                 """
-                DELETE FROM user_entitlements
+                DELETE FROM subscriptions 
                 WHERE user_id = %(user_id)s
                 """,
                 {"user_id": user_id},
@@ -434,6 +437,7 @@ class UserRepository(Repository):
             SELECT
             u.id, email, email_id, name,
             roles, password_hash, is_verified,
+            u.requested_subscription, u.requested_billing_period,
             ARRAY_AGG(su.provider) as sso_connections
             FROM users u
             LEFT JOIN sso_users su ON su.user_id = u.id
@@ -455,6 +459,35 @@ class UserRepository(Repository):
         user = await self._get_user_by_sql_property(user_id, "u.id")
         if not user:
             return None
+
+        return user
+
+    async def get_user_subscription(self, user_id: str) -> Subscription | None:
+        async with self.db.cursor() as cur:
+            await cur.execute(
+                """
+            SELECT id, user_id, stripe_subscription_id, status,
+            created_at, updated_at, expires_at
+            FROM subscriptions
+            WHERE user_id = %(user_id)s
+            """,
+                {"user_id": user_id},
+            )
+
+            subscription = await cur.fetchone()
+            if not subscription:
+                return None
+
+        return Subscription(**camelize(subscription))
+
+    async def get_user_with_info_by_id(self, user_id: str) -> UserWithInfo | None:
+        user = await self.get_user_by_id(user_id)
+        if not user:
+            return None
+
+        user = UserWithInfo(**user.model_dump(by_alias=True))
+        user.subscription = await self.get_user_subscription(user_id)
+        user.entities = await self.get_user_entities(user_id)
 
         return user
 
@@ -735,7 +768,7 @@ class UserRepository(Repository):
                 "UPDATE users SET is_verified = true WHERE id = %s", (user_id,)
             )
 
-    async def get_subscribed_users(self, email_type: EmailType) -> list[User]:
+    async def get_email_subscribed_users(self, email_type: EmailType) -> list[User]:
         async with self.db.cursor() as cur:
             await cur.execute(
                 """
@@ -750,7 +783,9 @@ class UserRepository(Repository):
 
             return [User(**camelize(user)) for user in await cur.fetchall()]
 
-    async def is_user_subscribed(self, user_id: str, email_type: EmailType) -> bool:
+    async def is_user_subscribed_to_emails(
+        self, user_id: str, email_type: EmailType
+    ) -> bool:
         async with self.db.cursor() as cur:
             await cur.execute(
                 """
@@ -765,7 +800,7 @@ class UserRepository(Repository):
 
             return bool(await cur.fetchone())
 
-    async def subscribe_user(self, user_id: str, email_type: EmailType):
+    async def subscribe_user_to_email(self, user_id: str, email_type: EmailType):
         async with self.db.cursor() as cur:
             await cur.execute(
                 """
@@ -787,7 +822,7 @@ class UserRepository(Repository):
                 )
 
     # I created this function so we would not accidentally subscribe a user that has unsubscribed
-    async def resubscribe_user(self, sub_id: int):
+    async def resubscribe_user_to_email(self, sub_id: int):
         async with self.db.cursor() as cur:
             await cur.execute(
                 """
@@ -798,7 +833,9 @@ class UserRepository(Repository):
                 {"sub_id": sub_id},
             )
 
-    async def unsubscribe_user(self, user_id: str, email_type: EmailType | None):
+    async def unsubscribe_user_from_email(
+        self, user_id: str, email_type: EmailType | None
+    ):
         async with self.db.cursor() as cur:
             where_clause = "WHERE user_id = %(user_id)s"
             if email_type:
@@ -829,6 +866,65 @@ Enter this code: {code} into your verification form. This code expires in 15 min
         except UnknownHashError:
             return False
 
+    async def provision_subscription_trial(self, user_id: str):
+        async with self.db.cursor() as cur:
+            await cur.execute(
+                """
+                INSERT INTO subscriptions
+                (id, user_id, stripe_subscription_id, status, created_at, updated_at, expires_at)
+                VALUES
+                (%(id)s, %(user_id)s, %(stripe_subscription_id)s, %(status)s,
+                %(created_at)s, %(updated_at)s, %(expires_at)s)
+                """,
+                {
+                    "id": str(uuid.uuid4()),
+                    "user_id": user_id,
+                    "stripe_subscription_id": None,
+                    "status": "trialing",
+                    "created_at": datetime.now(UTC),
+                    "updated_at": datetime.now(UTC),
+                    "expires_at": datetime.now(UTC)
+                    + timedelta(days=self.settings.free_trial_days),
+                },
+            )
+
+    async def get_user_envelopes(self, user_id: str) -> list[Envelope]:
+        async with self.db.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT e.id, e.entity_id, e.name, e.type, e.created_at, e.updated_at
+                FROM envelopes e
+                JOIN entities en ON en.id = e.entity_id
+                WHERE en.user_id = %(user_id)s
+                """,
+                {"user_id": user_id},
+            )
+
+            envelopes = [Envelope(**camelize(env)) async for env in cur]
+            return envelopes
+
+    async def get_user_entities(self, user_id: str) -> list[Entity]:
+        async with self.db.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT id, user_id, type, name, created_at, updated_at
+                FROM entities
+                WHERE user_id = %(user_id)s
+                """,
+                {"user_id": user_id},
+            )
+
+            entities = [Entity(**camelize(ent)) async for ent in cur]
+
+        envelopes = await self.get_user_envelopes(user_id)
+        envelopes_by_entity = {}
+        for envelope in envelopes:
+            envelopes_by_entity.setdefault(envelope.entity_id, []).append(envelope)
+
+        for entity in entities:
+            entity.envelopes = envelopes_by_entity.get(entity.id, [])
+        return entities
+
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -844,5 +940,3 @@ def generate_otp(len: int) -> str:
 
     for _ in range(len):
         otp += digits[math.floor(random.random() * 10)]
-
-    return otp

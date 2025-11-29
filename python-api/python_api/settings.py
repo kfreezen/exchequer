@@ -49,3 +49,4 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     cookie_domain: str = ".exchequer.io"
+    free_trial_days: int = 14

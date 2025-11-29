@@ -3,16 +3,9 @@ from typing import Annotated
 from uuid import UUID, uuid4
 from pydantic import AfterValidator, BaseModel, Field, EmailStr, PlainSerializer
 from datetime import datetime
-from python_api.models import CamelModel, DateTime, isoformat, CoerceToInt
-
-
-def _str(s):
-    return str(s)
-
-
-UUIDString = Annotated[
-    UUID, AfterValidator(str), PlainSerializer(_str, return_type=str)
-]
+from python_api.models import CamelModel, DateTime, isoformat, CoerceToInt, UUIDString
+from python_api.models.subscriptions import Subscription
+from python_api.models.entities import Entity
 
 
 class UserRole(Enum):
@@ -26,6 +19,15 @@ class TokenData(BaseModel):
 
 def _user_id():
     return uuid4()
+
+
+def _str(s):
+    return str(s)
+
+
+UUIDString = Annotated[
+    UUID, AfterValidator(str), PlainSerializer(_str, return_type=str)
+]
 
 
 class SsoUser(CamelModel):
@@ -65,6 +67,15 @@ class User(CamelModel):
 
     sso_connections: list[SsoConnectionType | None] = Field(default_factory=list)
     has_password: bool = False
+
+    requested_subscription: str | None = None
+    requested_billing_period: str | None = None
+    id: str
+
+
+class UserWithInfo(User):
+    subscription: Subscription | None = None
+    entities: list[Entity] = Field(default_factory=list)
 
 
 class AdminUserViewModel(CamelModel):

@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID
 from pydantic import (
     AfterValidator,
     BaseModel,
@@ -30,3 +31,12 @@ CoerceToInt = Annotated[int, BeforeValidator(_coerce_to_int)]
 
 class CamelModel(BaseModel):
     model_config = ConfigDict(alias_generator=camelize, populate_by_name=True)
+
+
+def _str(s):
+    return str(s)
+
+
+UUIDString = Annotated[
+    UUID, AfterValidator(str), PlainSerializer(_str, return_type=str)
+]

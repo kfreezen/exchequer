@@ -36,7 +36,7 @@ from python_api.tracking import Tracking
 from python_api.utils import load_key, validate_token, ACCESS_TOKEN_EXPIRE_MINUTES
 
 
-from python_api.models.users import User
+from python_api.models.users import User, UserWithInfo
 
 from python_api.services.bucket import FileBucket
 from python_api.sso.apple import AppleSSO
@@ -181,8 +181,6 @@ async def optional_jwt(
 
     try:
         payload = validate_token(token, settings)
-        if "entitlements" not in payload:
-            return None
         # Set the access token in the response cookies
         # This is so we don't have to sign in every time we refresh the page in the docs
         response.set_cookie(
@@ -342,7 +340,8 @@ async def get_current_user(
     user_id = valid_jwt.get("sub")
     if user_id is None:
         raise credentials_exception
-    user = await users.get_user_by_id(user_id)
+
+    user = await users.get_user_with_info_by_id(user_id)
     if user is None:
         print("no user")
         raise credentials_exception
@@ -350,12 +349,12 @@ async def get_current_user(
 
 
 async def get_current_active_user(
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[UserWithInfo, Depends(get_current_user)],
 ):
     return current_user
 
 
-CurrentActiveUserDep = Annotated[User, Depends(get_current_active_user)]
+CurrentActiveUserDep = Annotated[UserWithInfo, Depends(get_current_active_user)]
 
 # The reason we check redis for user roles is because jwt takes 2hrs to update user
 # And we update redis when we update user.

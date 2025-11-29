@@ -1,34 +1,34 @@
 <template>
-  <!-- Hero Section -->
-  <section class="py-16 md:py-24 px-8">
-    <div class="container max-w-screen-xl mx-auto">
-      <div class="grid md:grid-cols-2 gap-12 items-center">
-        <div class="space-y-6">
-          <h1
-            class="text-4xl md:text-5xl lg:text-6xl font-bold font-roboto-slab text-foreground leading-tight"
-          >
-            Business and Personal Finance, All in One Place
-          </h1>
-          <p class="text-lg md:text-xl text-muted-foreground">
-            You there! Are you one of the ten million people that has to track
-            both business and personal finances? This app combines the power of
-            envelope finance management with business expense tracking.
-          </p>
-
-          <div class="flex flex-col sm:flex-row gap-4 pt-4">
-            <Button @click="console.log('hello')">Get Started</Button>
-          </div>
-        </div>
-        <div class="flex justify-center">
-          <div
-            class="relative w-full max-w-md aspect-square rounded-3xl p-8 flex items-center justify-center"
-          ></div>
-        </div>
+  <ClientOnly>
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div class="mb-12">
+        <h1 class="text-4xl md:text-5xl font-display font-bold text-foreground">
+          Dashboard
+        </h1>
+        <p class="text-lg text-foreground/90">Where the magic happens.</p>
       </div>
-    </div>
-  </section>
+
+      <div
+        class="flex flex-col items-center justify-center gap-6"
+        v-if="user && user.entities.length === 0"
+      >
+        <Mail class="w-16 h-16 text-foreground" />
+        <h2 class="text-2xl font-semibold text-foreground/70">
+          Click here to set up your dashboard
+        </h2>
+        <p class="text-foreground/70 max-w-md text-center">
+          Or you can set things up manually by adding your personal plan and any
+          business entities you want to track.
+        </p>
+      </div>
+    </main>
+  </ClientOnly>
 </template>
 
 <script setup>
 import { Mail } from "lucide-vue-next";
+
+const { $auth } = useNuxtApp();
+
+const user = computed(() => $auth && $auth.user);
 </script>

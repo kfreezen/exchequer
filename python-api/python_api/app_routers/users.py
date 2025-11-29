@@ -17,6 +17,7 @@ from python_api.dependencies import (
     UserRepositoryDep,
     MailerDep,
     SettingsDep,
+    ValidJWTDep,
     refresh_token,
     apple_sso,
     get_current_active_user,
@@ -32,6 +33,7 @@ from python_api.models.users import (
     User,
     AppUser,
     DbUser,
+    UserWithInfo,
     VerifyEmailCode,
     UpdatePassword,
     UUIDString,
@@ -50,7 +52,7 @@ active_user_router = APIRouter(
 public_router = APIRouter(prefix="/users", tags=["users"])
 
 
-@public_router.get("/me", response_model=User)
+@public_router.get("/me", response_model=UserWithInfo)
 async def read_users_me(current_user: CurrentActiveUserDep):
     return current_user
 
@@ -67,6 +69,21 @@ async def update_user(
         raise HTTPException(404, "User not found")
 
     return user
+
+
+@active_user_router.post("/me/start-trial")
+async def start_user_trial(
+    valid_jwt: ValidJWTDep,
+    users: UserRepositoryDep,
+):
+    user_id = valid_jwt.get("sub")
+    if not user_id:
+        raise HTTPException(401, "Invalid JWT token")
+
+    try:
+        await users.provision_subscription_trial(user_id)
+    except Exception as e:
+        raise HTTPException(500, "Error starting trial") from e
 
 
 @public_router.get("/me/token")
@@ -150,7 +167,7 @@ async def get_user_token(
         else:
             raise HTTPException(401, "Refresh Token invalid")
 
-    user = users.from_db_user(current_user)
+    user = await users.get_user_with_info_by_id(str(current_user.id))
 
     ret = {
         "access_token": access_token,
@@ -204,17 +221,31 @@ async def create_user(
     )
 
     try:
-        customer = stripe.Customer.create(
-            email=db_user.email,
-            name=db_user.name,
-            metadata={"user_id": str(db_user.id)},
-        )
-        db_user.linked_stripe_id = customer.id
+        search_res = stripe.Customer.search(query=f"email:'{db_user.email}'")
+
+        if search_res.data and len(search_res.data) > 0:
+            db_user.linked_stripe_id = search_res.data[0].id
     except Exception as e:
+        print("Couldn't search for existing stripe customer", e)
+
         raise HTTPException(
             status_code=500,
             detail="Error creating user",
         ) from e
+
+    if not db_user.linked_stripe_id:
+        try:
+            customer = stripe.Customer.create(
+                email=db_user.email,
+                name=db_user.name,
+                metadata={"user_id": str(db_user.id)},
+            )
+            db_user.linked_stripe_id = customer.id
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail="Error creating user",
+            ) from e
 
     # Add user to db
     if db_user.roles == []:
@@ -227,6 +258,8 @@ async def create_user(
             status_code=status.HTTP_409_CONFLICT,
             detail="User already exist with that email",
         )
+
+    await users.provision_subscription_trial(db_user_id)
 
     # Verify email
     email_verification_code = await users.generate_email_verification_code(db_user_id)
@@ -499,4 +532,4 @@ async def unsubscribe_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    return await users.unsubscribe_user(str(user.id), email_type)
+    return await users.unsubscribe_user_from_email(str(user.id), email_type)
