@@ -1,0 +1,85 @@
+[tool.poetry]
+name = "python-api"
+version = "0.1.0"
+description = ""
+authors = ["Kent Friesen <kfreezen@gmail.com>"]
+readme = "README.md"
+packages = [{include = "python_api"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.122.0"
+pydantic = "^2.3.0"
+uvicorn = "^0.32.0"
+python-multipart = "^0.0.6"
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+psycopg = {extras=["binary"], version = "^3.0.0"}
+pydantic-settings = "^2.0.3"
+pyhumps = "^3.8.0"
+gunicorn = "^23.0.0"
+setuptools-scm = "^7.1.0"
+click = "^8.1.7"
+httpx = "^0.25.0"
+email-validator = "^2.1.0.post1"
+bcrypt = "^4.1.1"
+jwcrypto = "^1.5.1"
+python-jose = "^3.3.0"
+jinja2 = "^3.1.2"
+sqlalchemy = "^2.0.23"
+alembic = "^1.13.1"
+psycopg-pool = "^3.2.2"
+questionary = "^2.0.1"
+sentry-sdk = {version = "^2.3.1", extras = ["fastapi"]}
+celery = {version = "^5.4.0", extras = ["redis"]}
+redis = "^5.2.0"
+google-auth = "^2.30.0"
+anthropic = "^0.32.0"
+boto3 = "^1.38.30"
+pycountry = "^24.6.1"
+stripe = "^11.2.0"
+beautifulsoup4 = "^4.13.3"
+celery-types = "^0.23.0"
+
+[tool.poetry.scripts]
+dump = 'python_api.cli.dump_elastic:dump_to_elastic'
+setup-analytics = 'python_api.cli.dump_elastic:setup_analytics'
+prime-caches = 'python_api.cli:prime_caches'
+test-rc = 'python_api.cli:test_rc'
+schedule-email = 'python_api.cli:schedule_email'
+test-scheduled-emails = 'python_api.cli:test_scheduled_emails'
+init-subscriptions = 'python_api.cli:init_subscriptions'
+transactions = 'python_api.cli.transactions:transactions'
+
+[tool.poetry.group.dev.dependencies]
+httpie = "^3.2.2"
+pytest = "^7.0.0"
+pytest-docker = "^3.1.1"
+coverage = "^7.5.1"
+pytest-asyncio = "^0.21.0"
+pyflame = "^0.3.2"
+pyright = "^1.1.401"
+pylint = "^3.3.7"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pyright]
+ignore = ["tests/**/*.py", "testcv.py", "rip-pdfs.py", "alembic/**/*.py", "api-tester.py", "fill-years.py", "give-subscriptions.py"]
+
+reportAny = false
+reportExplicitAny = false
+reportUnannotatedClassAttribute = false
+reportCallInDefaultInitializer = false
+reportUnusedCallResult = false
+reportIncompatibleVariableOverride = false
+reportUnknownMemberType = false
+reportUnknownParameterType = false
+reportUnknownVariableType = false
+reportUnknownArgumentType = false
+reportMissingParameterType = false
+reportIgnoreCommentWithoutRule = false
+reportMissingTypeStubs = false
+reportImplicitOverride = false
+reportInvalidTypeForm = false
+

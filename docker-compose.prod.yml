@@ -1,0 +1,98 @@
+services:
+
+  init-api:
+    build: "exchequer-api"
+    env_file:
+      - ".env"
+    command: ["poetry", "run", "alembic", "upgrade", "head"]
+    volumes:
+      - ${VOLUME_DIR:-/opt/exchequer/storage/volumes}/exchequer/data:/data
+      - ${VOLUME_DIR:-/opt/exchequer/storage/volumes}/exchequer/config:/config
+    networks:
+      - exchequer
+
+  api:
+    build: "exchequer-api"
+    env_file:
+      - ".env"
+    depends_on:
+      - init-api
+    expose:
+      - 8000
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`${API_HOST:-api.exchequer.io}`) || (Host(`${ADMIN_HOST:-admin.exchequer.io}`) && PathPrefix(`/api`)) || (Host(`${APP_HOST:-exchequer.io}`) && PathPrefix(`/api`))"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls.certresolver=exchequer"
+      - "traefik.http.middlewares.prefix-middleware.stripprefix.prefixes=/api"
+      - "traefik.http.middlewares.prefix-middleware.stripprefix.forceSlash=false"
+      - "traefik.http.routers.api.middlewares=prefix-middleware"
+
+    volumes:
+      - ${VOLUME_DIR:-/opt/exchequer/storage/volumes}/exchequer/data:/data
+      - ${VOLUME_DIR:-/opt/exchequer/storage/volumes}/exchequer/config:/config
+    networks:
+      - exchequer
+
+  frontend:
+    build: "exchequer-admin"
+    expose:
+      - 8080
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`${ADMIN_HOST:-admin.exchequer.io}`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls.certresolver=exchequer"
+    restart: always
+    networks:
+      - exchequer
+
+  exchequer-app:
+    build: "exchequer-app"
+    expose:
+      - 8082
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.exchequer-app.rule=Host(`${APP_HOST:-exchequer.io}`)"
+      - "traefik.http.routers.exchequer-app.entrypoints=websecure"
+      - "traefik.http.routers.exchequer-app.tls.certresolver=exchequer"
+      - "traefik.http.middlewares.exchequer-app-middleware.stripprefix.prefixes=/app"
+      - "traefik.http.middlewares.exchequer-app-middleware.stripprefix.forceSlash=false"
+      - "traefik.http.routers.exchequer-app.middlewares=exchequer-app-middleware"
+    restart: always
+    networks:
+      - exchequer
+      
+
+  traefik:
+    container_name: "traefik"
+    image: traefik:v3.3
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.exchequer.acme.tlschallenge=true"
+      - "--certificatesresolvers.exchequer.acme.storage=/letsencrypt/acme.json"
+#- "--certificatesresolvers.myresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+      - "--certificatesresolvers.exchequer.acme.email=kent@kentfriesen.com"
+    ports:
+      - "80:80"
+      - "443:443"
+    expose:
+      - 80
+      - 443
+    restart: always
+    volumes:
+      - ${VOLUME_DIR:-/opt/exchequer/storage/volumes}/letsencrypt:/letsencrypt
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - exchequer
+  
+networks:
+  exchequer:
+    external: true

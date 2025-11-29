@@ -1,0 +1,5 @@
+Your verification code is: {{code}}.
+
+This code will expire in 15 minutes. To complete your registration, please enter this code when prompted.
+
+If you have any questions, please contact us at support@exchequer.io

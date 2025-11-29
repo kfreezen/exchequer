@@ -1,0 +1,5 @@
+
+Any edits to models must also applied to the database models. We use alembic
+to track changes to the database schema. To create a new migration, run:
+
+    alembic revision --autogenerate -m "Your message here" 

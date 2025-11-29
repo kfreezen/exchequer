@@ -1,0 +1,18 @@
+
+{% extends "base.html" %}
+
+{% block body %}
+<h2>Welcome to Exchequer!</h2>
+
+<p>Your verification code is:</p>
+<h3>{{ code }}</h3>
+
+<p>
+  This code will expire in 15 minutes. To complete your registration, please enter this code when prompted.
+</p>
+
+<p>
+  If you have any questions or need help, please contact us at
+  <a href="mailto:support@exchequer.io">support@exchequer.io</a>
+</p>
+{% endblock body %}

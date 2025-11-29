@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <!-- Desktop Outlook chokes on web font references and defaults to Times New Roman, so we force a safe fallback font. -->
+    <!--[if mso]>
+      <style>
+          * {
+              font-family: sans-serif !important;
+          }
+      </style>
+     <![endif]-->
+     <!--[if !mso]><!-->
+    <title>Exchequer</title>
+    </style>
+    <!--<![endif]-->
+    <style type="text/css">
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        div.wrapper {
+            font-weight: 300;
+            font-family: Roboto, sans-serif;
+        }
+
+        div.inner {
+            background-color: white;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        div.header {
+            min-width: 240px;
+            max-width: 600px;
+            height: 100px;
+            background-position: center center;
+            background-repeat: no-repeat;
+            background-size: auto 100px;
+        }
+
+        div.footer {
+          color: #999;
+        }
+
+        div.footer a {
+          color: #999;
+        }
+
+        div.body {
+            padding: 0px 20px 10px 20px;
+        }
+
+        h1,
+        h2 {
+            font-weight: 500;
+        }
+
+        a {
+            text-decoration: none;
+            font-weight: 500;
+            color: black;
+        }
+
+        a.button {
+            text-decoration: none;
+            background-color: #4a90e2;
+            padding: 10px;
+            color: white;
+            border-radius: 5px;
+        }
+
+        div.footer {
+          font-size: 0.8em;
+          margin-left: 20px;
+        }
+
+        a.unsubscribe {
+            margin: 20px;
+            margin-right: 0px;
+        }
+
+        div.promo {
+          margin-bottom: 20px;
+        }
+
+        div.links {
+          margin: 20px;
+          margin-left: 0px;
+        }
+    </style>
+  </head>
+  <body>
+    <div class="wrapper">
+      <div class="inner">
+        <!-- NOTE: This header image will not show unless you use server base_url -->
+        <div class="header" style="background-image: url('{{ app_url }}/static/img/desktop-email-header.png')">
+        </div>
+        <div class="body">
+        {% block body %}{% endblock body %}
+        </div>
+        {% include "footer.html" %}
+     </div>
+    </div>
+  </body>
+</html>

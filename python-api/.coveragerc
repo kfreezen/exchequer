@@ -1,0 +1,11 @@
+[run]
+omit =
+    alembic/*
+    config.py
+    config-3.py
+
+[report]
+omit =
+    alembic/*
+    config.py
+    config-3.py

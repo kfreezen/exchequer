@@ -1,0 +1,6 @@
+{% block content %}
+
+{% endblock %}
+
+{% include "footer.txt" %}
+

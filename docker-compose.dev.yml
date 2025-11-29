@@ -1,0 +1,12 @@
+services:
+  exchequer-redis:
+    ports:
+      - "6379:6379"
+  
+  exchequer-postgres:
+    ports:
+      - "5432:5432"
+
+  exchequer-search:
+    ports:
+      - "8108:8108"

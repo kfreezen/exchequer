@@ -1,0 +1,12 @@
+© 2025 - Exchequer Budgeting
+
+{% if email_type == 'promotional' %}
+This is a promotional email. You are receiving this email because you signed up for Exchequer Budgeting. You may <a href="{{ app_url }}/unsubscribe/{{ email_id }}">unsubscribe</a> at any time. You may also delete your account by signing into the app.
+{% endif %}
+
+Exchequer Budgeting
+251 N Villa Ave
+Willows, CA 95988
+
+Unsubscribe: {{ app_url }}/unsubscribe/{{ email_id }}
+

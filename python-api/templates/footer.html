@@ -1,0 +1,25 @@
+<!-- Nothing here yet! -->
+<div class="footer">
+  <div class="top-line">
+    <span class="copyright">© 2025 - Exchequer Budgeting</span>
+  </div>
+
+  <div class="clear"></div>
+
+  {% if email_type == 'promotional' %}
+  <p class="promo">This is a promotional email. You are receiving this email because you signed up for Exchequer Budgeting. You may <a href="{{ app_url }}/unsubscribe/{{ email_id }}">unsubscribe</a> at any time. You may also delete your account by signing into the app.</p>
+  {% endif %}
+
+  <p class="address">
+    <div>Exchequer Budgeting</div>
+    <div>251 N Villa Ave</div>
+    <div>Willows, CA 95988</div>
+  </p>
+
+  <div class="links">
+    <a class="contact" href="https://exchequer.io/contact">Contact Us</a>
+  {% if email_id %}
+    <a class="unsubscribe" href="{{ app_url }}/unsubscribe/{{ email_id }}">Unsubscribe</a>
+  {% endif %}
+  </div>
+</div>

@@ -1,0 +1,5 @@
+dist/
+test.py
+.venv
+.coverage
+celerybeat-schedule*
