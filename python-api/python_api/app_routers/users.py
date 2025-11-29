@@ -176,7 +176,6 @@ async def get_user_token(
     "",
     description="Create User",
     status_code=status.HTTP_201_CREATED,
-    response_model=User,
 )
 async def create_user(
     settings: SettingsDep,

@@ -2,12 +2,10 @@
   <div class="min-h-screen flex items-center justify-center p-4 space-y-4">
     <div class="w-full max-w-md">
       <div class="flex flex-col items-center justify-center space-x-2">
-        <div class="flex items-center justify-center space-x-2">
-          <img src="@/assets/images/logo.svg" alt="Stanza" class="w-48 h-24" />
+        <div class="flex items-center justify-center gap-2">
+          <Mail class="h-24" />
+          exchequer.io
         </div>
-        <h2 class="text-2xl font-roboto-slab font-bold mb-4">
-          The Gospel Sheet Music App
-        </h2>
 
         <Card
           class="mb-4 overflow-hidden bg-green-100"
@@ -22,12 +20,7 @@
         </Card>
       </div>
       <form @submit.prevent="submit" class="space-y-4">
-        <p class="text-muted-foreground" v-if="!route.query.redeem">
-          Sign in to your account
-        </p>
-        <p class="text-muted-foreground" v-else>
-          Sign in to redeem your gift subscription
-        </p>
+        <p class="text-muted-foreground">Sign in to your account</p>
         <div class="space-y-2">
           <Label htmlFor="email">Email</Label>
           <Input
@@ -83,7 +76,7 @@
           </button>
         </div>
 
-        <div
+        <!--<div
           id="appleid-signin"
           class="w-[210px] h-[40px]"
           data-color="black"
@@ -91,16 +84,17 @@
           data-type="sign-in"
         ></div>
 
-        <GoogleSignInButton text="signin_with" @success="onGoogleSignIn" />
+        <GoogleSignInButton text="signin_with" @success="onGoogleSignIn" />-->
       </form>
     </div>
   </div>
 </template>
 <script setup>
-import { onGoogleSignIn, onFailure, onAppleSignIn } from "@/utils/sso";
+// import { onGoogleSignIn, onFailure, onAppleSignIn } from "@/utils/sso";
+import { Mail } from "lucide-vue-next";
 
 useScript(
-  "https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js"
+  "https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js",
 );
 
 let auth = useNuxtApp().$auth;
@@ -194,19 +188,20 @@ onMounted(() => {
       passwordInput.value.focus();
   }
 
-  document.addEventListener("AppleIDSignInOnSuccess", onAppleSignIn);
-  document.addEventListener("AppleIDSignInOnFailure", onFailure);
+  //document.addEventListener("AppleIDSignInOnSuccess", onAppleSignIn);
+  //document.addEventListener("AppleIDSignInOnFailure", onFailure);
 });
 
 onUnmounted(() => {
-  document.removeEventListener("AppleIDSignInOnSuccess", onAppleSignIn);
-  document.removeEventListener("AppleIDSignInOnFailure", onFailure);
+  //document.removeEventListener("AppleIDSignInOnSuccess", onAppleSignIn);
+  //document.removeEventListener("AppleIDSignInOnFailure", onFailure);
 });
 
 let runtimeConfig = useRuntimeConfig();
 
-let nonce = await useApi("/apple-nonce");
+//let nonce = await useApi("/apple-nonce");
 
+/*
 useHead({
   meta: [
     {
@@ -229,5 +224,5 @@ onMounted(() => {
       usePopup: true,
     });
   }
-});
+});*/
 </script>

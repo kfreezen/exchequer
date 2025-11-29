@@ -16,7 +16,9 @@
           </p>
 
           <div class="flex flex-col sm:flex-row gap-4 pt-4">
-            <Button @click="console.log('hello')">Get Started</Button>
+            <NuxtLink to="/get-started">
+              <Button>Get Started</Button>
+            </NuxtLink>
           </div>
         </div>
         <div class="flex justify-center">

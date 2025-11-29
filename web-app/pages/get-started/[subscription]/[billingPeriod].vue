@@ -47,7 +47,7 @@
           />
         </div>
 
-        <Card class="mb-4 p-4 overflow-hidden bg-red-100" v-if="error">
+        <Card class="mb-4 pt-4 overflow-hidden bg-red-100" v-if="error">
           <CardContent>
             <p class="text-red-700">
               {{ error }}
@@ -92,7 +92,7 @@ let name = ref("");
 let email = ref("");
 let password = ref("");
 
-let { $api } = useNuxtApp();
+let { $api, $auth } = useNuxtApp();
 let route = useRoute();
 
 async function submit() {
@@ -111,7 +111,11 @@ async function submit() {
     });
 
     if (res) {
-      navigateTo(`/setup`);
+      $auth.token = res.access_token;
+      $auth.refreshToken = res.refresh_token;
+      $auth.user = await res.user;
+
+      navigateTo(`/verification`);
     } else {
       navigateTo("/signin");
     }

@@ -170,8 +170,7 @@ class UserRepository(Repository):
                 restricted,
                 linked_stripe_id,
                 requested_subscription,
-                requested_billing_period,
-                promo
+                requested_billing_period
                 )
                 VALUES
                 (
@@ -186,8 +185,7 @@ class UserRepository(Repository):
                 %(restricted)s,
                 %(linked_stripe_id)s,
                 %(requested_subscription)s,
-                %(requested_billing_period)s,
-                %(promo)s
+                %(requested_billing_period)s
                 )
                 RETURNING id;
                 """,

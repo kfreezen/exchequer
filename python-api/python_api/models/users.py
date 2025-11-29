@@ -105,7 +105,6 @@ class DbUser(User):
     linked_stripe_id: str | None = None
     requested_subscription: str | None = None
     requested_billing_period: str | None = None
-    promo: bool = False
 
 
 class DbUserToken(BaseModel):
