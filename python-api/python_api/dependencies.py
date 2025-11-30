@@ -32,6 +32,7 @@ from python_api.mail import EmailGenerator, Mailer
 from python_api.repositories.users import UserRepository
 from python_api.repositories.automated_emails import AutomatedEmails
 from python_api.repositories.transactions import TransactionsRepository
+from python_api.repositories.entities import EntitiesRepository
 from python_api.tracking import Tracking
 from python_api.utils import load_key, validate_token, ACCESS_TOKEN_EXPIRE_MINUTES
 
@@ -128,44 +129,6 @@ AsyncConnPoolDep = Annotated[
 ]
 
 
-async def postgres_async(conn_pool: AsyncConnPoolDep):
-    async with LazyConnectionContextManagerAsync(conn_pool) as conn:
-        yield conn
-
-
-AsyncPostgresDep = Annotated[AsyncConnection[DictRow], Depends(postgres_async)]
-
-
-async def user_errors(db: AsyncPostgresDep):
-    errors = UserErrors(db)
-    try:
-        yield errors
-    finally:
-        await errors.submit_all()
-
-
-UserErrorsDep = Annotated[UserErrors, Depends(user_errors)]
-
-
-async def automated_emails(settings: SettingsDep, postgres: AsyncPostgresDep):
-    return AutomatedEmails(settings, postgres)
-
-
-AutomatedEmailsDep = Annotated[AutomatedEmails, Depends(automated_emails)]
-
-
-async def user_repo(
-    postgres: AsyncPostgresDep,
-    settings: SettingsDep,
-    x_app_platform: str | None = Header(None),
-    x_app_build: str | None = Header(None),
-):
-    return UserRepository(x_app_platform, x_app_build, postgres, settings)
-
-
-UserRepositoryDep = Annotated[UserRepository, Depends(user_repo)]
-
-
 async def optional_jwt(
     response: Response,
     request: Request,
@@ -205,6 +168,54 @@ async def optional_jwt(
 
 
 OptionalJWTDep = Annotated[dict | None, Depends(optional_jwt)]
+
+
+async def postgres_async(conn_pool: AsyncConnPoolDep, optional_jwt: OptionalJWTDep):
+    async with LazyConnectionContextManagerAsync(conn_pool, optional_jwt) as conn:
+        yield conn
+
+
+AsyncPostgresDep = Annotated[AsyncConnection[DictRow], Depends(postgres_async)]
+
+
+async def user_errors(db: AsyncPostgresDep):
+    errors = UserErrors(db)
+    try:
+        yield errors
+    finally:
+        await errors.submit_all()
+
+
+UserErrorsDep = Annotated[UserErrors, Depends(user_errors)]
+
+
+async def automated_emails(settings: SettingsDep, postgres: AsyncPostgresDep):
+    return AutomatedEmails(settings, postgres)
+
+
+AutomatedEmailsDep = Annotated[AutomatedEmails, Depends(automated_emails)]
+
+
+async def entities_repo(
+    postgres: AsyncPostgresDep,
+):
+    return EntitiesRepository(postgres)
+
+
+EntitiesRepositoryDep = Annotated[EntitiesRepository, Depends(entities_repo)]
+
+
+async def user_repo(
+    postgres: AsyncPostgresDep,
+    settings: SettingsDep,
+    entities: EntitiesRepositoryDep,
+    x_app_platform: str | None = Header(None),
+    x_app_build: str | None = Header(None),
+):
+    return UserRepository(x_app_platform, x_app_build, postgres, settings, entities)
+
+
+UserRepositoryDep = Annotated[UserRepository, Depends(user_repo)]
 
 
 async def valid_jwt(
@@ -390,10 +401,12 @@ async def editor(jwt: ValidJWTDep, redis: RedisDep):
 
 async def jwt_if_valid_subscription(jwt: ValidJWTDep):
     try:
-        if "entitlements" not in jwt or not jwt["entitlements"]:
+        if "subscription" not in jwt or not jwt["subscription"]:
             return None
         else:
-            expires_at = next(iter(jwt["entitlements"].values()))
+            expires_at = jwt["subscription"].get("expiresAt", None)
+            if not expires_at:
+                return None
             if datetime.fromisoformat(expires_at) < datetime.now(timezone.utc):
                 return None
 

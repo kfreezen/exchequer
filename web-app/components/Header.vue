@@ -36,7 +36,7 @@
               {{ user ? user.name : "My Account" }}
             </DropdownMenuLabel>
             <DropdownMenuItem
-              @click="auth.logout()"
+              @click="$auth.logout()"
               v-if="user"
               class="text-muted-foreground hover:text-primary"
             >
@@ -54,10 +54,7 @@
 import { Mail, LogOut, User } from "lucide-vue-next";
 
 const mobileMenuOpen = ref(false);
-const user = ref(null);
 
 let { $auth } = useNuxtApp();
-if ($auth) {
-  user.value = await $auth.getUser();
-}
+const user = computed(() => $auth?.user || null);
 </script>

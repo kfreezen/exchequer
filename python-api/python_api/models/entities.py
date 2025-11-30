@@ -11,6 +11,11 @@ class EntityType(str, Enum):
     BUSINESS = "business"
 
 
+class EntityCreate(CamelModel):
+    type: EntityType
+    name: str
+
+
 class Entity(CamelModel):
     id: UUIDString
     user_id: UUIDString

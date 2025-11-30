@@ -3,7 +3,7 @@ from typing import Any
 from datetime import datetime, timedelta, timezone
 from jwcrypto import common, jwk, jwt
 
-from python_api.models.users import DbUser
+from python_api.models.users import DbUser, UserWithInfo
 
 ALGORITHM = "RS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 120
@@ -35,6 +35,13 @@ def create_access_token_from_user(
         data={
             "sub": str(user.id),
             "roles": [r.value for r in user.roles],
+            "subscription": {
+                "expiresAt": user.subscription.expires_at.isoformat()
+                if user.subscription and user.subscription.expires_at
+                else None,
+            }
+            if user.subscription
+            else None,
             "fresh": fresh,
             "restricted": user.restricted,
             "verified": user.is_verified,

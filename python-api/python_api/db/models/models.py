@@ -329,16 +329,18 @@ class Transaction(Base):
         nullable=False,
     )
 
-    account_id: Str = mapped_column(
-        UUID,
-        ForeignKey("accounts.id", name="transaction_account_fkey", ondelete="CASCADE"),
-        nullable=False,
-    )
-
-    envelope_id: Str = mapped_column(
+    from_id: Str = mapped_column(
         UUID,
         ForeignKey(
-            "envelopes.id", name="transaction_envelope_fkey", ondelete="SET NULL"
+            "envelopes.id", name="transaction_from_envelope_fkey", ondelete="SET NULL"
+        ),
+        nullable=True,
+    )
+
+    to_id: Str = mapped_column(
+        UUID,
+        ForeignKey(
+            "envelopes.id", name="transaction_to_envelope_fkey", ondelete="CASCADE"
         ),
         nullable=True,
     )

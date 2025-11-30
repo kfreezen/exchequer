@@ -26,14 +26,23 @@ from python_api.models.emails import EmailType
 
 from python_api.repositories import Repository
 
+from python_api.repositories.entities import EntitiesRepository
 from python_api.settings import Settings
 
 
 class UserRepository(Repository):
-    def __init__(self, app_platform, app_build, db, settings: Settings):
+    def __init__(
+        self,
+        app_platform,
+        app_build,
+        db,
+        settings: Settings,
+        entities: EntitiesRepository,
+    ):
         super().__init__(app_platform, app_build)
         self.db = db
         self.settings = settings
+        self.entities = entities
 
     @staticmethod
     def from_db_user(user: DbUser | None) -> User | None:
@@ -428,6 +437,8 @@ class UserRepository(Repository):
                 return None
 
         user = DbUser(**camelize(user))
+        user.subscription = await self.get_user_subscription(user.id)
+
         return user
 
     async def _get_user_by_sql_property(self, search: str, property_name: str):
@@ -453,6 +464,8 @@ class UserRepository(Repository):
         db_user = DbUser(**camelize(user))
         if len(db_user.sso_connections) == 1 and db_user.sso_connections[0] is None:
             db_user.sso_connections = []
+
+        db_user.subscription = await self.get_user_subscription(db_user.id)
         return db_user
 
     async def get_user_by_id(self, user_id: str) -> DbUser | None:
@@ -486,9 +499,7 @@ class UserRepository(Repository):
             return None
 
         user = UserWithInfo(**user.model_dump(by_alias=True))
-        user.subscription = await self.get_user_subscription(user_id)
-        user.entities = await self.get_user_entities(user_id)
-
+        user.entities = await self.entities.get_entities_for_user(user_id)
         return user
 
     async def get_user_by_email_id(self, email_id: str) -> DbUser | None:
@@ -887,43 +898,6 @@ Enter this code: {code} into your verification form. This code expires in 15 min
                     + timedelta(days=self.settings.free_trial_days),
                 },
             )
-
-    async def get_user_envelopes(self, user_id: str) -> list[Envelope]:
-        async with self.db.cursor() as cur:
-            await cur.execute(
-                """
-                SELECT e.id, e.entity_id, e.name, e.type, e.created_at, e.updated_at
-                FROM envelopes e
-                JOIN entities en ON en.id = e.entity_id
-                WHERE en.user_id = %(user_id)s
-                """,
-                {"user_id": user_id},
-            )
-
-            envelopes = [Envelope(**camelize(env)) async for env in cur]
-            return envelopes
-
-    async def get_user_entities(self, user_id: str) -> list[Entity]:
-        async with self.db.cursor() as cur:
-            await cur.execute(
-                """
-                SELECT id, user_id, type, name, created_at, updated_at
-                FROM entities
-                WHERE user_id = %(user_id)s
-                """,
-                {"user_id": user_id},
-            )
-
-            entities = [Entity(**camelize(ent)) async for ent in cur]
-
-        envelopes = await self.get_user_envelopes(user_id)
-        envelopes_by_entity = {}
-        for envelope in envelopes:
-            envelopes_by_entity.setdefault(envelope.entity_id, []).append(envelope)
-
-        for entity in entities:
-            entity.envelopes = envelopes_by_entity.get(entity.id, [])
-        return entities
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

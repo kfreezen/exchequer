@@ -6,8 +6,16 @@ from python_api.models import CamelModel, UUIDString
 
 
 class EnvelopeType(str, Enum):
-    INCOME = "income"
-    EXPENSE = "expense"
+    MASTER_INCOME = "master-income"
+    MASTER_EXPENSE = "master-expense"
+
+    ACCOUNT = "account"
+    ENVELOPE = "envelope"
+
+
+class EnvelopeCreate(CamelModel):
+    name: str
+    type: EnvelopeType
 
 
 class Envelope(CamelModel):

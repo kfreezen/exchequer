@@ -11,7 +11,7 @@ from python_api.dependencies import (
     requires_valid_subscription,
 )
 
-from . import bucket, users
+from . import bucket, users, entities
 
 app_router = APIRouter(
     prefix="",
@@ -30,4 +30,6 @@ authorized_router = APIRouter(
 
 authorized_router.include_router(bucket.router)
 authorized_router.include_router(users.router)
+authorized_router.include_router(entities.router)
+
 app_router.include_router(authorized_router)

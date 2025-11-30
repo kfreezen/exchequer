@@ -70,7 +70,6 @@ class User(CamelModel):
 
     requested_subscription: str | None = None
     requested_billing_period: str | None = None
-    id: str
 
 
 class UserWithInfo(User):
@@ -116,6 +115,8 @@ class DbUser(User):
     linked_stripe_id: str | None = None
     requested_subscription: str | None = None
     requested_billing_period: str | None = None
+
+    subscription: Subscription | None = None
 
 
 class DbUserToken(BaseModel):
