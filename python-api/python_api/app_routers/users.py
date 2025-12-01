@@ -25,6 +25,7 @@ from python_api.dependencies import (
     AutomatedEmailsDep,
     TransactionsRepositoryDep,
 )
+from python_api.integrations.ynab import IntegrationError, YNABConnector
 from python_api.models import CamelModel
 from python_api.sso.apple import AppleSSO
 from python_api.models.users import (
@@ -37,6 +38,8 @@ from python_api.models.users import (
     VerifyEmailCode,
     UpdatePassword,
     UUIDString,
+    YNABIntegration,
+    YNABIntegrationCreate,
 )
 from python_api.models.emails import EmailType
 from python_api.models.users import UserRole
@@ -84,6 +87,24 @@ async def start_user_trial(
         await users.provision_subscription_trial(user_id)
     except Exception as e:
         raise HTTPException(500, "Error starting trial") from e
+
+
+@public_router.post("/me/integrations/ynab")
+async def link_ynab_account(
+    users: UserRepositoryDep, jwt: ValidJWTDep, body: YNABIntegrationCreate
+):
+    user_id = jwt.get("sub")
+    if not user_id:
+        raise HTTPException(401, "Invalid JWT token")
+
+    integration = YNABIntegration(**body.model_dump())
+    connector = YNABConnector(integration)
+    try:
+        await connector.validate_connection()
+    except IntegrationError as e:
+        raise HTTPException(400, detail=e.info)
+
+    await users.add_integration(user_id, "ynab", body)
 
 
 @public_router.get("/me/token")
@@ -396,7 +417,7 @@ async def verify_email_verification_code(
         )
 
     await users.update_user_to_verified(_id)
-    user = await users.get_user(_id)
+    user = await users.get_user_with_info_by_id(_id)
 
     if user and user.is_verified is True:
         access_token = create_access_token_from_user(settings, user)

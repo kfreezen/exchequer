@@ -74,6 +74,7 @@ class User(CamelModel):
 
 class UserWithInfo(User):
     subscription: Subscription | None = None
+    integrations: dict | None = None
     entities: list[Entity] = Field(default_factory=list)
 
 
@@ -117,6 +118,7 @@ class DbUser(User):
     requested_billing_period: str | None = None
 
     subscription: Subscription | None = None
+    integrations: dict | None = None
 
 
 class DbUserToken(BaseModel):
@@ -142,3 +144,12 @@ class VerifyEmailCode(CamelModel):
 class UpdatePassword(CamelModel):
     old_password: str
     new_password: str
+
+
+class YNABIntegrationCreate(CamelModel):
+    token: str | None = None
+
+
+class YNABIntegration(CamelModel):
+    token: str | None = None
+    last_synced_at: DateTime | None = None

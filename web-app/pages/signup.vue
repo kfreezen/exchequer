@@ -104,8 +104,8 @@ async function submit() {
         name: name.value,
         email: email.value,
         password: password.value,
-        subscription: route.params.subscription,
-        billingPeriod: route.params.billingPeriod,
+        subscription: route.query.subscription || "professional",
+        billingPeriod: route.query.billingPeriod || "annual",
         promo: false,
       },
     });

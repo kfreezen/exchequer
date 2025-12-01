@@ -122,6 +122,8 @@ class User(Base):
     requested_subscription: Str = mapped_column(TEXT, nullable=True)
     requested_billing_period: Str = mapped_column(TEXT, nullable=True)
 
+    integrations: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=True)
+
 
 class Subscription(Base):
     __tablename__ = "subscriptions"
@@ -266,6 +268,19 @@ class UserEmailSubscription(Base):
     unsubscribed_at = mapped_column(BIGINT, nullable=True)
 
     email_type: Str = mapped_column(TEXT, nullable=False)
+
+
+class Plan(Base):
+    __tablename__ = "plans"
+
+    id: Str = mapped_column(UUID, primary_key=True)
+    name: Str = mapped_column(TEXT, nullable=False)
+
+    user_id: Str = mapped_column(
+        UUID,
+        ForeignKey("users.id", name="plan_user_fkey", ondelete="CASCADE"),
+        nullable=False,
+    )
 
 
 class Entity(Base):

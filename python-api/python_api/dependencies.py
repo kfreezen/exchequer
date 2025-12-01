@@ -10,6 +10,7 @@ import os
 import stripe
 
 from fastapi import Header, Query, Request, status, Response
+from python_api.integrations.ynab import YNABConnector
 from python_api.sso import InvalidIDToken
 
 from python_api.sso.google import GoogleSSO
@@ -37,7 +38,7 @@ from python_api.tracking import Tracking
 from python_api.utils import load_key, validate_token, ACCESS_TOKEN_EXPIRE_MINUTES
 
 
-from python_api.models.users import User, UserWithInfo
+from python_api.models.users import User, UserWithInfo, YNABIntegration
 
 from python_api.services.bucket import FileBucket
 from python_api.sso.apple import AppleSSO
@@ -465,3 +466,27 @@ async def tracking(redis: RedisDep, jwt: OptionalJWTDep):
 
 
 TrackingDep = Annotated[Tracking, Depends(tracking)]
+
+
+async def ynab_connector_dep(
+    current_user: CurrentActiveUserDep,
+):
+    if not current_user.integrations:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="YNAB integration not found for user.",
+        )
+
+    ynab_integration = current_user.integrations.get("ynab", None)
+    if not ynab_integration:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="YNAB integration not found for user.",
+        )
+
+    ynab_integration = YNABIntegration(**ynab_integration)
+    connector = YNABConnector(ynab_integration)
+    yield connector
+
+
+YNABConnectorDep = Annotated[YNABConnector, Depends(ynab_connector_dep)]

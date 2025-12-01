@@ -8,6 +8,7 @@ import base64
 from humps import camelize
 from passlib.context import CryptContext
 from passlib.exc import UnknownHashError
+from pydantic import BaseModel
 
 from python_api.models.entities import Entity
 from python_api.models.envelopes import Envelope
@@ -449,6 +450,7 @@ class UserRepository(Repository):
             u.id, email, email_id, name,
             roles, password_hash, is_verified,
             u.requested_subscription, u.requested_billing_period,
+            u.integrations,
             ARRAY_AGG(su.provider) as sso_connections
             FROM users u
             LEFT JOIN sso_users su ON su.user_id = u.id
@@ -899,6 +901,28 @@ Enter this code: {code} into your verification form. This code expires in 15 min
                 },
             )
 
+    async def add_integration(
+        self, user_id, integration_name: str, integration_data: BaseModel
+    ):
+        async with self.db.cursor() as cur:
+            await cur.execute(
+                """
+                UPDATE users
+                SET integrations = jsonb_set(
+                    COALESCE(integrations, '{}'),
+                    %(integration_path)s,
+                    %(integration_data)s::jsonb,
+                    true
+                )
+                WHERE id = %(user_id)s
+                """,
+                {
+                    "integration_path": f"{{{integration_name}}}",
+                    "integration_data": integration_data.model_dump_json(by_alias=True),
+                    "user_id": user_id,
+                },
+            )
+
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -914,3 +938,5 @@ def generate_otp(len: int) -> str:
 
     for _ in range(len):
         otp += digits[math.floor(random.random() * 10)]
+
+    return otp

@@ -28,6 +28,7 @@
           </Card>
         </button>
 
+        <!--
         <div>or</div>
 
         <button @click="addPlan()" v-if="user && user.entities.length === 0">
@@ -39,7 +40,7 @@
               <p class="text-foreground/70 max-w-md text-center">Add a plan</p>
             </CardContent>
           </Card>
-        </button>
+        </button>-->
       </div>
       <div v-else class="flex flex-col gap-6">
         <div class="flex flex-col items-start justify-start">
@@ -107,5 +108,9 @@ const showEnvelopeDialog = ref(false);
 
 function addPlan() {
   showPlanDialog.value = true;
+}
+
+function setup() {
+  navigateTo("/setup");
 }
 </script>
