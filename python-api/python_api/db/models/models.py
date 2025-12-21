@@ -270,6 +270,17 @@ class UserEmailSubscription(Base):
     email_type: Str = mapped_column(TEXT, nullable=False)
 
 
+class CurrencyFormat(Base):
+    __tablename__ = "currency_formats"
+
+    currency_code: Str = mapped_column(TEXT, primary_key=True)
+    symbol: Str = mapped_column(TEXT, nullable=False)
+    symbol_position: Str = mapped_column(TEXT, nullable=False)  # 'before' or 'after'
+    decimal_separator: Str = mapped_column(TEXT, nullable=False)
+    thousand_separator: Str = mapped_column(TEXT, nullable=False)
+    decimal_places: Int = mapped_column(INTEGER, nullable=False)
+
+
 class Plan(Base):
     __tablename__ = "plans"
 
@@ -281,6 +292,15 @@ class Plan(Base):
         ForeignKey("users.id", name="plan_user_fkey", ondelete="CASCADE"),
         nullable=False,
     )
+
+    currency_code: Str = mapped_column(
+        TEXT, ForeignKey("currency_formats.currency_code"), nullable=False
+    )
+
+    import_id: Mapped[Str] = mapped_column(TEXT, nullable=True, index=True, unique=True)
+
+    created_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
 
 
 class Entity(Base):
@@ -299,6 +319,34 @@ class Entity(Base):
 
     created_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
+
+
+class Account(Base):
+    __tablename__ = "accounts"
+
+    id: Str = mapped_column(UUID, primary_key=True)
+
+    user_id: Str = mapped_column(
+        UUID,
+        ForeignKey("users.id", name="account_user_fkey", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    entity_id: Str = mapped_column(
+        UUID,
+        ForeignKey("entities.id", name="account_entity_fkey", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    type: Str = mapped_column(TEXT, index=True)
+    name: Str = mapped_column(TEXT)
+
+    created_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
+
+    import_revision: Mapped[int] = mapped_column(INTEGER, nullable=True, index=True)
+    import_id: Mapped[Str] = mapped_column(TEXT, nullable=True, index=True)
+    imported_document: Mapped[dict] = mapped_column(JSONB, nullable=True)
 
 
 class Envelope(Base):
@@ -321,10 +369,34 @@ class Envelope(Base):
     type: Str = mapped_column(TEXT, index=True)
     name: Str = mapped_column(TEXT)
 
-    # Eventually will have targets, etc.
+    created_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
+
+    import_revision: Mapped[int] = mapped_column(INTEGER, nullable=True, index=True)
+    import_id: Mapped[Str] = mapped_column(TEXT, nullable=True, index=True)
+    imported_document: Mapped[dict] = mapped_column(JSONB, nullable=True)
+
+
+class Payee(Base):
+    __tablename__ = "payees"
+
+    id: Str = mapped_column(UUID, primary_key=True)
+
+    user_id: Str = mapped_column(
+        UUID,
+        ForeignKey("users.id", name="payee_user_fkey", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    name: Str = mapped_column(TEXT)
 
     created_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
+    deleted_at: Mapped[datetime] = mapped_column(TZ_TIMESTAMP, nullable=True)
+
+    import_revision: Mapped[int] = mapped_column(INTEGER, nullable=True, index=True)
+    import_id: Mapped[Str] = mapped_column(TEXT, nullable=True, index=True)
+    imported_document: Mapped[dict] = mapped_column(JSONB, nullable=True)
 
 
 class Transaction(Base):
@@ -344,18 +416,36 @@ class Transaction(Base):
         nullable=False,
     )
 
-    from_id: Str = mapped_column(
+    account_id: Str = mapped_column(
+        UUID,
+        ForeignKey("accounts.id", name="transaction_account_fkey", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    transfer_account_id: Str = mapped_column(
         UUID,
         ForeignKey(
-            "envelopes.id", name="transaction_from_envelope_fkey", ondelete="SET NULL"
+            "accounts.id",
+            name="transaction_transfer_account_fkey",
+            ondelete="SET NULL",
         ),
         nullable=True,
     )
 
-    to_id: Str = mapped_column(
+    transfer_transaction_id: Str = mapped_column(
         UUID,
         ForeignKey(
-            "envelopes.id", name="transaction_to_envelope_fkey", ondelete="CASCADE"
+            "transactions.id",
+            name="transaction_transfer_transaction_fkey",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+    )
+
+    envelope_id: Str = mapped_column(
+        UUID,
+        ForeignKey(
+            "envelopes.id", name="transaction_envelope_fkey", ondelete="CASCADE"
         ),
         nullable=True,
     )
@@ -370,3 +460,7 @@ class Transaction(Base):
     updated_in_exchequer_at: Mapped[datetime] = mapped_column(
         TZ_TIMESTAMP, nullable=True
     )
+
+    import_revision: Mapped[int] = mapped_column(INTEGER, nullable=True, index=True)
+    import_id: Mapped[Str] = mapped_column(TEXT, nullable=True, index=True)
+    imported_document: Mapped[dict] = mapped_column(JSONB, nullable=True)

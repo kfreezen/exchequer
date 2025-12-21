@@ -35,7 +35,7 @@
           Now that your YNAB account is connected, we can import your plans.
         </p>
 
-        <div v-if="plans.length > 0" class="w-full">
+        <div v-if="ynabPlans.length > 0" class="w-full">
           <form
             @submit.prevent="importPlans"
             class="flex flex-col items-start gap-4 w-full"
@@ -56,7 +56,7 @@
               </SelectTrigger>
               <SelectContent>
                 <SelectItem
-                  v-for="plan in plans"
+                  v-for="plan in ynabPlans"
                   :key="plan.id"
                   :value="plan.id"
                 >
@@ -79,23 +79,56 @@ const { $auth, $api } = useNuxtApp();
 
 let user = computed(() => $auth?.user || { integrations: null });
 
-let plans = ref([]);
+let ynabPlans = ref([]);
+let exchequerPlans = ref([]);
 let selectedPlans = ref([]);
 
+async function importPlans() {
+  if (selectedPlans.value.length === 0) {
+    alert("Please select at least one plan to import.");
+    return;
+  }
+
+  try {
+    await $api("/api/ynab/import/plans", {
+      method: "POST",
+      body: {
+        plans: ynabPlans.value.filter((plan) =>
+          selectedPlans.value.includes(plan.id),
+        ),
+      },
+    });
+
+    navigateTo("/setup/data");
+
+    // Optionally, redirect or update the UI here
+  } catch (error) {
+    console.error("Error importing plans:", error);
+    alert("Failed to import plans. Please try again later.");
+  }
+}
+
 onMounted(async () => {
+  try {
+    const response = await $api("/api/plans");
+    exchequerPlans.value = response || [];
+  } catch (error) {
+    console.error("Error fetching existing plans:", error);
+  }
+
   if (user.value.integrations && user.value.integrations.ynab) {
     // Fetch plans from the backend
     try {
       const response = await $api("/api/ynab/plans");
-      plans.value = response || [];
+      ynabPlans.value = response || [];
 
-      if (plans.value.length === 0) {
+      if (ynabPlans.value.length === 0) {
         alert("No plans found in your YNAB account.");
       }
 
-      if (plans.value.length === 1) {
+      if (ynabPlans.value.length === 1) {
         // Auto-select the only available plan
-        selectedPlans.value = [plans.value[0].id];
+        selectedPlans.value = [ynabPlans.value[0].id];
       }
     } catch (error) {
       console.error("Error fetching plans:", error);

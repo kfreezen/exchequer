@@ -34,6 +34,11 @@ from python_api.repositories.users import UserRepository
 from python_api.repositories.automated_emails import AutomatedEmails
 from python_api.repositories.transactions import TransactionsRepository
 from python_api.repositories.entities import EntitiesRepository
+from python_api.repositories.plans import PlansRepository
+from python_api.repositories.payees import PayeesRepository
+from python_api.repositories.envelopes import EnvelopesRepository
+from python_api.repositories.accounts import AccountsRepository
+
 from python_api.tracking import Tracking
 from python_api.utils import load_key, validate_token, ACCESS_TOKEN_EXPIRE_MINUTES
 
@@ -451,15 +456,6 @@ async def requires_valid_subscription(has_subscription: JWTIfValidSubscriptionDe
 ValidSubscriberDep = Annotated[User, Depends(requires_valid_subscription)]
 
 
-async def transactions_repo(postgres: AsyncPostgresDep):
-    return TransactionsRepository(postgres)
-
-
-TransactionsRepositoryDep = Annotated[
-    TransactionsRepository, Depends(transactions_repo)
-]
-
-
 async def tracking(redis: RedisDep, jwt: OptionalJWTDep):
     user_id = jwt.get("sub", None) if jwt else None
     yield Tracking(redis, user_id)
@@ -489,4 +485,39 @@ async def ynab_connector_dep(
     yield connector
 
 
+async def plans_repo(
+    postgres: AsyncPostgresDep,
+):
+    return PlansRepository(postgres)
+
+
+async def payees_repo(
+    postgres: AsyncPostgresDep,
+):
+    return PayeesRepository(postgres)
+
+
+async def accounts_repo(
+    postgres: AsyncPostgresDep,
+):
+    return AccountsRepository(postgres)
+
+
+async def envelopes_repo(
+    postgres: AsyncPostgresDep,
+):
+    return EnvelopesRepository(postgres)
+
+
+async def transactions_repo(postgres: AsyncPostgresDep):
+    return TransactionsRepository(postgres)
+
+
 YNABConnectorDep = Annotated[YNABConnector, Depends(ynab_connector_dep)]
+PlansRepositoryDep = Annotated[PlansRepository, Depends(plans_repo)]
+AccountsRepositoryDep = Annotated[AccountsRepository, Depends(accounts_repo)]
+EnvelopesRepositoryDep = Annotated[EnvelopesRepository, Depends(envelopes_repo)]
+PayeesRepositoryDep = Annotated[PayeesRepository, Depends(payees_repo)]
+TransactionsRepositoryDep = Annotated[
+    TransactionsRepository, Depends(transactions_repo)
+]

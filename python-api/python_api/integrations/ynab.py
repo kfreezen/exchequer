@@ -37,7 +37,11 @@ class YNABConnector:
             data = res.json()
 
         plans = [
-            YNABPlan(id=budget["id"], name=budget["name"])
+            YNABPlan(
+                id=budget["id"],
+                name=budget["name"],
+                currency_code=budget["currency_format"]["iso_code"],
+            )
             for budget in data["data"]["budgets"]
         ]
 
