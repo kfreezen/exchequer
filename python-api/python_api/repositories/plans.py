@@ -1,7 +1,7 @@
 from uuid import uuid4
 from humps import camelize
 from python_api.models.plans import Plan
-from python_api.models.ynab import YNABPlan
+from python_api.models.ynab import PlanImport
 from . import Repository
 
 
@@ -10,27 +10,29 @@ class PlansRepository(Repository):
         super().__init__(None, None)
         self.db = db
 
-    async def import_ynab_plan(self, user_id: str, ynab_plan: YNABPlan):
+    async def import_plan(self, user_id: str, plan: PlanImport):
         async with self.db.cursor() as cur:
             await cur.execute(
                 """
-                INSERT INTO plans (id, import_id, user_id, name, currency_code, created_at, updated_at)
-                VALUES (%(id)s, %(import_id)s, %(user_id)s, %(name)s, %(currency_code)s, NOW(), NOW())
+                INSERT INTO plans (id, import_id, user_id, name, currency_code, created_at, updated_at, imported_document, import_source)
+                VALUES (%(id)s, %(import_id)s, %(user_id)s, %(name)s, %(currency_code)s, NOW(), NOW(), %(imported_document)s, %(import_source)s)
                 ON CONFLICT (import_id) DO NOTHING
                 RETURNING id, user_id, name, currency_code, created_at, updated_at
                 """,
                 {
                     "id": uuid4(),
-                    "import_id": ynab_plan.id,
+                    "import_id": plan.import_id,
                     "user_id": user_id,
-                    "name": ynab_plan.name,
-                    "currency_code": ynab_plan.currency_code,
+                    "name": plan.name,
+                    "currency_code": plan.currency_code,
+                    "imported_document": plan.model_dump_json(),
+                    "import_source": plan.import_source,
                 },
             )
 
             row = await cur.fetchone()
             if not row or not row["id"]:
-                return await self.get_plan_by_import_id(ynab_plan.id)
+                return await self.get_plan_by_import_id(plan.import_id)
 
             return Plan.model_validate(camelize(row))
 

@@ -222,7 +222,7 @@ async def google_sso_login(
             name=name,
             # Why True? Our user has been verified by virtue of the whole apple thing.
             is_verified=True,
-            roles=[UserRole.CONSUMER],
+            roles=[],
             password_hash="",
         )
 
@@ -395,7 +395,7 @@ async def apple_sso_login(
             name=name or "No Name Provided",
             # Why True? Our user has been verified by virtue of the whole apple thing.
             is_verified=True,
-            roles=[UserRole.CONSUMER],
+            roles=[],
             password_hash="",
         )
 

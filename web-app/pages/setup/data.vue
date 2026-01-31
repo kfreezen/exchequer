@@ -22,7 +22,7 @@
         <div v-if="exchequerPlans.length > 0" class="w-full">
           <Button @click="importAll" class="w-full"> Import All Data </Button>
 
-          <div v-if="inProgress" class="mt-6">
+          <div v-if="progressReport.length > 0" class="mt-6">
             <h2 class="text-xl font-semibold mb-4">Import Progress</h2>
             <ul class="space-y-2">
               <li
@@ -31,8 +31,10 @@
                 class="flex items-center space-x-2"
               >
                 <span>{{ item.task }}</span>
-                <span v-if="item.status === 'completed'" class="text-green-500"
-                  >Completed</span
+                <span
+                  v-if="item.status === 'completed' && item.count !== undefined"
+                  class="text-green-500"
+                  >{{ item.count }} new entries</span
                 >
                 <span
                   v-else-if="item.status === 'in-progress'"
@@ -60,53 +62,34 @@ let selectedPlans = ref([]);
 let progressReport = ref([]);
 let inProgress = ref(false);
 
+async function importEntityType(entityType, taskName) {
+  let task = {
+    task: `Importing ${taskName}`,
+    status: "in-progress",
+  };
+
+  progressReport.value.push(task);
+  let result = await $api(`/api/ynab/import/${entityType}`, {
+    method: "POST",
+  });
+
+  task.count = 0;
+  for (let plan of exchequerPlans.value) {
+    task.count += result[plan.id][`${entityType}Imported`] || 0;
+  }
+
+  task.status = "completed";
+}
+
 async function importAll() {
   try {
     inProgress.value = true;
+    progressReport.value = [];
 
-    let importingPayees = {
-      task: "Importing Payees",
-      status: "in-progress",
-    };
-
-    progressReport.value.push(importingPayees);
-    await $api("/api/ynab/import/payees", {
-      method: "POST",
-    });
-    importingPayees.status = "completed";
-
-    let importingCategories = {
-      task: "Importing Categories",
-      status: "in-progress",
-    };
-
-    progressReport.value.push(importingCategories);
-    await $api("/api/ynab/import/categories", {
-      method: "POST",
-    });
-    importingCategories.status = "completed";
-
-    let importingAccounts = {
-      task: "Importing Accounts",
-      status: "in-progress",
-    };
-
-    progressReport.value.push(importingAccounts);
-    await $api("/api/ynab/import/accounts", {
-      method: "POST",
-    });
-    importingAccounts.status = "completed";
-
-    let importingTransactions = {
-      task: "Importing Transactions. This one might take a while...",
-      status: "in-progress",
-    };
-
-    progressReport.value.push(importingTransactions);
-    await $api("/api/ynab/import/transactions", {
-      method: "POST",
-    });
-    importingTransactions.status = "completed";
+    await importEntityType("payees", "Payees");
+    await importEntityType("categories", "Categories");
+    await importEntityType("accounts", "Accounts");
+    await importEntityType("transactions", "Transactions");
 
     progressReport.value.push({
       task: "Import completed successfully!",
@@ -116,8 +99,11 @@ async function importAll() {
     inProgress.value = false;
     // Optionally, redirect or update the UI here
   } catch (error) {
-    console.error("Error importing plans:", error);
-    alert("Failed to import plans. Please try again later.");
+    console.error("Error importing data:", error);
+    progressReport.value.push({
+      task: "Import failed. Please try again later.",
+      status: "completed",
+    });
   }
 }
 

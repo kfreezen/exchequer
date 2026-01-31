@@ -63,18 +63,6 @@ class MailerMock:
         self.calls.append((to, subject, text, html))
 
 
-class RCResponse:
-    def __init__(self, json):
-        self._json = json
-
-    @property
-    def is_error(self):
-        return False
-
-    def json(self):
-        return self._json
-
-
 @pytest.fixture(scope="session")
 def event_loop():
     import asyncio
@@ -151,11 +139,6 @@ def test_app(postgres, redis, test_user, user_repo):
 
         return test_user
 
-    async def override_revenuecat(
-        users: UserRepositoryDep, transactions: TransactionsRepositoryDep
-    ):
-        return RevenueCatMock(users, transactions)
-
     def override_mailer():
         return MailerMock()
 
@@ -188,7 +171,6 @@ def test_app(postgres, redis, test_user, user_repo):
     app.dependency_overrides[valid_jwt] = override_valid_jwt
     app.dependency_overrides[admin] = lambda: True
     app.dependency_overrides[settings] = override_settings
-    app.dependency_overrides[revenue_cat] = override_revenuecat
     app.dependency_overrides[mailer] = override_mailer
     app.dependency_overrides[bucket_storage] = override_bucket_storage
     return app

@@ -9,9 +9,12 @@ from fastapi.encoders import jsonable_encoder
 from httpx import HTTPStatusError
 from psycopg.errors import UniqueViolation
 from python_api.dependencies import (
+    AccountsRepositoryDep,
     AppleSSODep,
     BucketStorageDep,
     CurrentActiveUserDep,
+    EnvelopesRepositoryDep,
+    PayeesRepositoryDep,
     TrackingDep,
     UserErrorsDep,
     UserRepositoryDep,
@@ -91,14 +94,22 @@ async def start_user_trial(
 
 @public_router.post("/me/integrations/ynab")
 async def link_ynab_account(
-    users: UserRepositoryDep, jwt: ValidJWTDep, body: YNABIntegrationCreate
+    users: UserRepositoryDep,
+    jwt: ValidJWTDep,
+    body: YNABIntegrationCreate,
+    payees: PayeesRepositoryDep,
+    envelopes: EnvelopesRepositoryDep,
+    accounts: AccountsRepositoryDep,
+    transactions: TransactionsRepositoryDep,
 ):
     user_id = jwt.get("sub")
     if not user_id:
         raise HTTPException(401, "Invalid JWT token")
 
     integration = YNABIntegration(**body.model_dump())
-    connector = YNABConnector(integration)
+    connector = YNABConnector(
+        user_id, integration, payees, envelopes, accounts, transactions
+    )
     try:
         await connector.validate_connection()
     except IntegrationError as e:
@@ -245,7 +256,7 @@ async def create_user(
         search_res = stripe.Customer.search(query=f"email:'{db_user.email}'")
 
         if search_res.data and len(search_res.data) > 0:
-            db_user.linked_stripe_id = search_res.data[0].id
+            db_user.linked_stripe_id = search_res.data[0].id  # pyright: ignore
     except Exception as e:
         print("Couldn't search for existing stripe customer", e)
 
@@ -351,7 +362,7 @@ async def update_password(
 
 
 class PostUserVerification(CamelModel):
-    user: User | UnverifiedUser
+    user: User | UnverifiedUser | UserWithInfo | None
     refresh_token: str | None
     access_token: str | None
 
@@ -394,9 +405,7 @@ async def verify_email_verification_code(
         )
 
     if user.is_verified:
-        return PostUserVerification(
-            user=users.from_db_user(user), refresh_token=None, access_token=None
-        )
+        return PostUserVerification(user=user, refresh_token=None, access_token=None)
 
     if not user.code_expires_at:
         error_logger(400, "Code has not been sent", user=user)
@@ -423,7 +432,6 @@ async def verify_email_verification_code(
         access_token = create_access_token_from_user(settings, user)
         refresh_token_obj = await users.insert_new_refresh_token(str(user.id))
         refresh_token = refresh_token_obj.refresh_token
-        token_type = "bearer"
 
         if set_cookie:
             response.set_cookie(
@@ -439,13 +447,13 @@ async def verify_email_verification_code(
             )
 
         return PostUserVerification(
-            user=users.from_db_user(user),
+            user=user,
             refresh_token=refresh_token,
             access_token=access_token,
         )
     else:
         return PostUserVerification(
-            user=users.from_db_user(user),
+            user=user,
             refresh_token=None,
             access_token=None,
         )

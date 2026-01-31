@@ -13,9 +13,9 @@ router = APIRouter(prefix="/bucket", tags=["bucket"])
 
 
 @router.post(
-    "/covers", dependencies=[Depends(dependencies.requires_valid_subscription)]
+    "/attachments", dependencies=[Depends(dependencies.requires_valid_subscription)]
 )
-async def upload_cover(
+async def upload_attachment(
     file: Annotated[UploadFile, File(description="Cover File")],
     bucket_store: dependencies.BucketStorageDep,
 ):
@@ -34,22 +34,11 @@ async def upload_cover(
     else:
         file_key = file.filename
 
-    file_key = await bucket_store.upload_cover(
-        bucket="covers", file=file, file_key=file_key
+    file_key = await bucket_store.upload_file(
+        bucket="attachments", file=file, file_key=file_key
     )
 
     return {"fileKey": file_key}
-
-
-@router.get("/covers/{_key}", description="Get cover file.")
-async def get_cover_file(
-    _key: str,
-    bucket_store: dependencies.BucketStorageDep,
-):
-    guessed_type = mimetypes.guess_type(_key)
-    file_key = await bucket_store.get_bucket_file(_key=_key, bucket="covers")
-
-    return FileResponse(file_key, media_type=guessed_type[0] or "application/pdf")
 
 
 @router.get(

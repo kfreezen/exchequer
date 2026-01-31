@@ -1,8 +1,13 @@
+from uuid import UUID
 from fastapi import APIRouter
 
-from python_api.dependencies import ValidJWTDep, EntitiesRepositoryDep
+from python_api.dependencies import (
+    EnvelopesRepositoryDep,
+    ValidJWTDep,
+    EntitiesRepositoryDep,
+)
 from python_api.models.entities import EntityCreate
-from python_api.models.envelopes import EnvelopeCreate
+from python_api.models.envelopes import Envelope, EnvelopeCreate
 
 router = APIRouter(prefix="/entities", tags=["entities"])
 
@@ -24,18 +29,20 @@ async def create_entity(
 @router.post("/{entity_id}/envelopes")
 async def create_entity_envelope(
     jwt: ValidJWTDep,
-    entities: EntitiesRepositoryDep,
+    envelopes: EnvelopesRepositoryDep,
     entity_id: str,
-    envelope: EnvelopeCreate,
+    envelope: Envelope,
 ):
-    return await entities.insert_envelope(jwt["sub"], entity_id, envelope)
+    envelope.entity_id = UUID(entity_id)
+
+    return await envelopes.insert_envelope(jwt["sub"], envelope)
 
 
 @router.delete("/{entity_id}/envelopes/{envelope_id}")
 async def delete_entity_envelope(
     jwt: ValidJWTDep,
-    entities: EntitiesRepositoryDep,
+    envelopes: EnvelopesRepositoryDep,
     entity_id: str,
     envelope_id: str,
 ):
-    return await entities.delete_envelope(jwt["sub"], entity_id, envelope_id)
+    return await envelopes.delete_envelope(jwt["sub"], entity_id, envelope_id)

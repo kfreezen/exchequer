@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<style>
+
+</head>
+<body>
+<div class="outer-container">
+
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div class="mb-12">
+        <h1 class="text-4xl md:text-5xl font-display font-bold text-foreground">
+          Profit and Loss
+        </h1>
+        <p class="text-lg text-foreground/90">
+          A summary of your income and expenses.
+        </p>
+
+        <div class="flex gap-4 items-center print:hidden">
+          <Popover class="mt-6" v-model:open="showBeginningDatePicker">
+            <PopoverTrigger as-child>
+              <Button>From Date: {{ beginningDateFormatted }}</Button>
+            </PopoverTrigger>
+            <PopoverContent class="w-64">
+              <Calendar
+                v-model="beginningDate"
+                @update:modelValue="
+                  showBeginningDatePicker = false;
+                  loadReport();
+                "
+              >
+              </Calendar>
+            </PopoverContent>
+          </Popover>
+          <Popover class="mt-6 ml-4" v-model:open="showToDatePicker">
+            <PopoverTrigger as-child>
+              <Button>To Date: {{ toDateFormatted }}</Button>
+            </PopoverTrigger>
+            <PopoverContent class="w-64">
+              <Calendar
+                v-model="toDate"
+                @update:modelValue="
+                  showToDatePicker = false;
+                  loadReport();
+                "
+              >
+              </Calendar>
+            </PopoverContent>
+          </Popover>
+          <DropdownMenu class="mt-6 ml-4">
+            <DropdownMenuTrigger as-child>
+            <Button>{{selectedDateRangeLabel}}</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem
+                v-for="option in dateRangeOptions"
+                :key="option.value"
+                @click="
+                  selectDateRange(option.value);
+                "
+              >
+                {{ option.label }}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        <h2 class="mt-6 text-2xl font-bold text-foreground">Income</h2>
+        <div class="mt-2">
+          <div
+            v-for="item in incomeItems"
+            :key="item.id"
+            class="flex justify-between py-2 border-b border-foreground/10"
+          >
+            <div class="flex gap-4 items-center">
+              <Checkbox v-model="item.selected" />
+              <input
+                v-model="item.envelopeName"
+                @blur="
+                  updateAlias(
+                    item.envelopeId,
+                    item.envelopeName,
+                    'profit-and-loss',
+                  )
+                "
+              />
+            </div>
+            <div class="text-foreground">{{ item.amountFormatted }}</div>
+          </div>
+        </div>
+        <h3 class="mt-1">Total Income: {{ totalIncomeFormatted }}</h3>
+
+        <h2 class="mt-6 text-2xl font-bold text-foreground">Expenses</h2>
+        <div class="mt-2">
+          <div
+            v-for="item in expenseItems"
+            :key="item.id"
+            class="flex justify-between py-2 border-b border-foreground/10"
+          >
+            <div class="flex gap-4 items-center">
+              <Checkbox v-model="item.selected" />
+              <input
+                v-model="item.envelopeName"
+                @blur="
+                  updateAlias(
+                    item.envelopeId,
+                    item.envelopeName,
+                    'profit-and-loss',
+                  )
+                "
+              />
+            </div>
+            <div class="text-foreground">{{ item.amountFormatted }}</div>
+          </div>
+        </div>
+        <h3 class="mt-1">Total Expenses: {{ totalExpensesFormatted }}</h3>
+        <h3 class="mt-6 text-2xl font-bold text-foreground">
+          Net Profit/Loss:
+          {{ netProfitLossFormatted }}
+        </h3>
+      </div>
+    </main>
+</div>
+</body>
+</html>

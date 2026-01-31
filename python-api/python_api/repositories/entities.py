@@ -1,15 +1,17 @@
 from uuid import uuid4
+
+from python_api.repositories.envelopes import EnvelopesRepository
 from . import Repository
 from humps import camelize
 
 from python_api.models.entities import Entity, EntityCreate, EntityType
-from python_api.models.envelopes import Envelope
 
 
 class EntitiesRepository(Repository):
-    def __init__(self, db):
+    def __init__(self, db, envelopes: EnvelopesRepository):
         super().__init__(None, None)
         self.db = db
+        self.envelopes = envelopes
 
     async def create_default_entities(self, user_id: str):
         default_entities = [
@@ -43,21 +45,6 @@ class EntitiesRepository(Repository):
             row = await cur.fetchone()
             return Entity(**camelize(row))
 
-    async def get_user_envelopes(self, user_id: str):
-        async with self.db.cursor() as cur:
-            await cur.execute(
-                """
-                SELECT e.id, e.entity_id, e.name, e.created_at, e.updated_at
-                FROM envelopes e
-                JOIN entities en ON e.entity_id = en.id
-                WHERE en.user_id = %(user_id)s
-                """,
-                {"user_id": user_id},
-            )
-
-            envelopes = [Envelope(**camelize(env)) async for env in cur]
-            return envelopes
-
     async def get_entities_for_user(self, user_id: str):
         async with self.db.cursor() as cur:
             await cur.execute(
@@ -71,7 +58,7 @@ class EntitiesRepository(Repository):
 
             entities = [Entity(**camelize(ent)) async for ent in cur]
 
-        envelopes = await self.get_user_envelopes(user_id)
+        envelopes = await self.envelopes.get_user_envelopes(user_id)
         envelopes_by_entity = {}
         for envelope in envelopes:
             envelopes_by_entity.setdefault(envelope.entity_id, []).append(envelope)

@@ -53,9 +53,7 @@ from .settings import Settings
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
 import psycopg_pool
 
-settings = Settings()
-
-stripe.api_key = settings.stripe_secret_key
+stripe.api_key = Settings().stripe_secret_key
 
 ALGORITHM = "RS256"
 
@@ -202,28 +200,6 @@ async def automated_emails(settings: SettingsDep, postgres: AsyncPostgresDep):
 AutomatedEmailsDep = Annotated[AutomatedEmails, Depends(automated_emails)]
 
 
-async def entities_repo(
-    postgres: AsyncPostgresDep,
-):
-    return EntitiesRepository(postgres)
-
-
-EntitiesRepositoryDep = Annotated[EntitiesRepository, Depends(entities_repo)]
-
-
-async def user_repo(
-    postgres: AsyncPostgresDep,
-    settings: SettingsDep,
-    entities: EntitiesRepositoryDep,
-    x_app_platform: str | None = Header(None),
-    x_app_build: str | None = Header(None),
-):
-    return UserRepository(x_app_platform, x_app_build, postgres, settings, entities)
-
-
-UserRepositoryDep = Annotated[UserRepository, Depends(user_repo)]
-
-
 async def valid_jwt(
     optional_jwt: OptionalJWTDep,
     redis: RedisDep,
@@ -327,58 +303,6 @@ AppleKeys = Annotated[list[dict], Depends(get_apple_keys)]
 GoogleKeys = Annotated[list[dict], Depends(get_google_keys)]
 
 
-async def apple_sso(
-    settings: SettingsDep,
-    users: UserRepositoryDep,
-    apple_keys: AppleKeys,
-    user_errors: UserErrorsDep,
-):
-    return AppleSSO(settings, users, user_errors, apple_keys)
-
-
-async def google_sso(settings: SettingsDep, google_keys: GoogleKeys):
-    return GoogleSSO(settings, google_keys)
-
-
-AppleSSODep = Annotated[AppleSSO, Depends(apple_sso)]
-GoogleSSODep = Annotated[GoogleSSO, Depends(google_sso)]
-
-
-async def get_current_user(
-    users: UserRepositoryDep,
-    valid_jwt: Annotated[dict, Depends(valid_jwt)],
-):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
-    user_id = valid_jwt.get("sub")
-    if user_id is None:
-        raise credentials_exception
-
-    user = await users.get_user_with_info_by_id(user_id)
-    if user is None:
-        print("no user")
-        raise credentials_exception
-    return user
-
-
-async def get_current_active_user(
-    current_user: Annotated[UserWithInfo, Depends(get_current_user)],
-):
-    return current_user
-
-
-CurrentActiveUserDep = Annotated[UserWithInfo, Depends(get_current_active_user)]
-
-# The reason we check redis for user roles is because jwt takes 2hrs to update user
-# And we update redis when we update user.
-# And the reason we don't use postgres to check is because postgres is slow
-# And these checks happen every request so they need to be fast
-
-
 async def admin(jwt: ValidJWTDep, redis: RedisDep):
     user = await redis.get(f"users:{jwt['sub']}")
     user = User(**json.loads(user)) if user else None
@@ -464,27 +388,6 @@ async def tracking(redis: RedisDep, jwt: OptionalJWTDep):
 TrackingDep = Annotated[Tracking, Depends(tracking)]
 
 
-async def ynab_connector_dep(
-    current_user: CurrentActiveUserDep,
-):
-    if not current_user.integrations:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="YNAB integration not found for user.",
-        )
-
-    ynab_integration = current_user.integrations.get("ynab", None)
-    if not ynab_integration:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="YNAB integration not found for user.",
-        )
-
-    ynab_integration = YNABIntegration(**ynab_integration)
-    connector = YNABConnector(ynab_integration)
-    yield connector
-
-
 async def plans_repo(
     postgres: AsyncPostgresDep,
 ):
@@ -513,7 +416,6 @@ async def transactions_repo(postgres: AsyncPostgresDep):
     return TransactionsRepository(postgres)
 
 
-YNABConnectorDep = Annotated[YNABConnector, Depends(ynab_connector_dep)]
 PlansRepositoryDep = Annotated[PlansRepository, Depends(plans_repo)]
 AccountsRepositoryDep = Annotated[AccountsRepository, Depends(accounts_repo)]
 EnvelopesRepositoryDep = Annotated[EnvelopesRepository, Depends(envelopes_repo)]
@@ -521,3 +423,114 @@ PayeesRepositoryDep = Annotated[PayeesRepository, Depends(payees_repo)]
 TransactionsRepositoryDep = Annotated[
     TransactionsRepository, Depends(transactions_repo)
 ]
+
+
+async def entities_repo(
+    postgres: AsyncPostgresDep,
+    envelopes: EnvelopesRepositoryDep,
+):
+    return EntitiesRepository(postgres, envelopes)
+
+
+EntitiesRepositoryDep = Annotated[EntitiesRepository, Depends(entities_repo)]
+
+
+async def user_repo(
+    postgres: AsyncPostgresDep,
+    settings: SettingsDep,
+    entities: EntitiesRepositoryDep,
+    x_app_platform: str | None = Header(None),
+    x_app_build: str | None = Header(None),
+):
+    return UserRepository(x_app_platform, x_app_build, postgres, settings, entities)
+
+
+UserRepositoryDep = Annotated[UserRepository, Depends(user_repo)]
+
+
+async def apple_sso(
+    settings: SettingsDep,
+    users: UserRepositoryDep,
+    apple_keys: AppleKeys,
+    user_errors: UserErrorsDep,
+):
+    return AppleSSO(settings, users, user_errors, apple_keys)
+
+
+async def google_sso(settings: SettingsDep, google_keys: GoogleKeys):
+    return GoogleSSO(settings, google_keys)
+
+
+AppleSSODep = Annotated[AppleSSO, Depends(apple_sso)]
+GoogleSSODep = Annotated[GoogleSSO, Depends(google_sso)]
+
+
+async def get_current_user(
+    users: UserRepositoryDep,
+    valid_jwt: Annotated[dict, Depends(valid_jwt)],
+):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    user_id = valid_jwt.get("sub")
+    if user_id is None:
+        raise credentials_exception
+
+    user = await users.get_user_with_info_by_id(user_id)
+    if user is None:
+        print("no user")
+        raise credentials_exception
+
+    if user.entities is None or len(user.entities) == 0:
+        print("no entities for user, creating default entities")
+        user.entities = await users.entities.create_default_entities(str(user.id))
+
+    return user
+
+
+async def get_current_active_user(
+    current_user: Annotated[UserWithInfo, Depends(get_current_user)],
+):
+    return current_user
+
+
+CurrentActiveUserDep = Annotated[UserWithInfo, Depends(get_current_active_user)]
+
+# The reason we check redis for user roles is because jwt takes 2hrs to update user
+# And we update redis when we update user.
+# And the reason we don't use postgres to check is because postgres is slow
+# And these checks happen every request so they need to be fast
+
+
+async def ynab_connector_dep(
+    current_user: CurrentActiveUserDep,
+    payees_repo: PayeesRepositoryDep,
+    envelopes_repo: EnvelopesRepositoryDep,
+    accounts_repo: AccountsRepositoryDep,
+    transactions_repo: TransactionsRepositoryDep,
+    users_repo: UserRepositoryDep,
+):
+    ynab_integration = await users_repo.get_integration(current_user.id, "ynab")
+
+    if not ynab_integration:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="YNAB integration not found for user.",
+        )
+
+    ynab_integration = YNABIntegration(**ynab_integration)
+    connector = YNABConnector(
+        current_user.id,
+        ynab_integration,
+        payees_repo,
+        envelopes_repo,
+        accounts_repo,
+        transactions_repo,
+    )
+    yield connector
+
+
+YNABConnectorDep = Annotated[YNABConnector, Depends(ynab_connector_dep)]

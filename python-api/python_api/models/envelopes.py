@@ -3,6 +3,7 @@ from enum import Enum
 
 from pydantic import Field
 from python_api.models import CamelModel, UUIDString
+from python_api.models.transactions import Transaction
 
 
 class EnvelopeType(str, Enum):
@@ -20,11 +21,22 @@ class EnvelopeCreate(CamelModel):
 
 class Envelope(CamelModel):
     id: UUIDString
-    user_id: UUIDString
-    entity_id: UUIDString
+    entity_id: UUIDString | None = None
 
     name: str
-    type: EnvelopeType
 
     created_at: datetime
     updated_at: datetime
+
+
+class EnvelopeWithTransactionCounts(Envelope):
+    unassigned_transaction_count: int | None = Field(
+        None, description="Number of unassigned transactions for this envelope"
+    )
+
+
+class EnvelopeWithTransactions(Envelope):
+    transactions: list[Transaction] = Field(
+        default_factory=list,
+        description="List of transactions associated with this envelope",
+    )

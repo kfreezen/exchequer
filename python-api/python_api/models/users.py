@@ -25,11 +25,6 @@ def _str(s):
     return str(s)
 
 
-UUIDString = Annotated[
-    UUID, AfterValidator(str), PlainSerializer(_str, return_type=str)
-]
-
-
 class SsoUser(CamelModel):
     id: str
     provider: str
@@ -74,7 +69,6 @@ class User(CamelModel):
 
 class UserWithInfo(User):
     subscription: Subscription | None = None
-    integrations: dict | None = None
     entities: list[Entity] = Field(default_factory=list)
 
 
@@ -119,6 +113,8 @@ class DbUser(User):
 
     subscription: Subscription | None = None
     integrations: dict | None = None
+
+    promo: bool = False
 
 
 class DbUserToken(BaseModel):

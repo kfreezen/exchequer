@@ -26,7 +26,10 @@ def compatibility_compare(app_platform, app_build, apple_build, google_build=Non
 
 
 def create_access_token_from_user(
-    settings, user: DbUser, fresh=False, expires_delta: timedelta | None = None
+    settings,
+    user: DbUser | UserWithInfo,
+    fresh=False,
+    expires_delta: timedelta | None = None,
 ):
     expires_delta = expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 

@@ -17,7 +17,7 @@
             <CardContent
               class="flex flex-col items-center justify-center gap-6 p-6"
             >
-              <Mail class="w-16 h-16 text-foreground" />
+              <Mail class="w-16 h-16 taext-foreground" />
               <h2 class="text-2xl font-semibold text-foreground/70">
                 Click here to set up your dashboard
               </h2>
@@ -43,29 +43,80 @@
         </button>-->
       </div>
       <div v-else class="flex flex-col gap-6">
-        <div class="flex flex-col items-start justify-start">
-          <h2 class="text-2xl font-bold">Accounts</h2>
-          <div v-for="account in accounts" :key="account.id">
-            {{ account.name }}
-          </div>
-          <NuxtLink to="/accounts">
-            <Button> Add accounts to get started </Button>
-          </NuxtLink>
-        </div>
+        <div
+          class="flex flex-col items-start justify-start gap-2"
+          v-if="unassignedEnvelopes.length > 0"
+        >
+          <h2 class="text-2xl font-bold">Unassigned Envelopes</h2>
+          <p class="mb-4">
+            The whole goal here is to assign these envelopes a home. Select some
+            and then tell us whether they are for personal or business use.
+          </p>
 
-        <div class="flex flex-col items-start justify-start">
-          <h2 class="text-2xl font-bold">Envelopes</h2>
-          <div v-for="envelope in envelopes" :key="envelope.id">
+          <div
+            v-for="envelope in unassignedEnvelopes"
+            :key="envelope.id"
+            class="p-2 border border-foreground/10 rounded-md w-full flex items-center gap-4 cursor-pointer"
+            :class="{ 'bg-foreground/5': envelope.selected }"
+            @click="envelope.selected = !envelope.selected"
+          >
+            <Checkbox v-model="envelope.selected" @click.stop="null" />
             {{ envelope.name }}
           </div>
-          <Button @click="addEnvelopes()" v-if="accounts.length > 0">
-            Add envelopes to get started
-          </Button>
-          <p v-else class="text-foreground/70">
-            Please add at least one account before adding envelopes.
+        </div>
+        <div v-else class="flex flex-col">
+          <h2
+            v-if="unassignedTransactionEnvelopes.length === 0"
+            class="text-2xl font-bold flex gap-4"
+          >
+            <Check class="w-8 h-8" /> All envelopes have a tax classification
+          </h2>
+        </div>
+
+        <div
+          v-if="unassignedEnvelopes.length === 0"
+          class="flex flex-col items-start justify-start gap-2"
+        >
+          <h2
+            class="text-2xl font-bold"
+            v-if="unassignedTransactionEnvelopes.length > 0"
+          >
+            Envelopes with unassigned transactions
+          </h2>
+          <p class="mb-4" v-if="unassignedTransactionEnvelopes.length > 0">
+            Some envelopes have transactions that need to be assigned a tax
+            classification. Select the envelopes below and then tell us whether
+            the transactions are for personal or business use.
           </p>
+          <div
+            v-for="envelope in unassignedTransactionEnvelopes"
+            :key="envelope.id"
+            class="p-2 hover:bg-foreground/5 active:bg-foreground/10 border border-foreground/10 rounded-md w-full flex items-center gap-4 cursor-pointer flex flex-row justify-between"
+            @click="envelope.selected = !envelope.selected"
+          >
+            <div class="flex items-center gap-4">
+              <Checkbox v-model="envelope.selected" @click.stop="null" />
+              {{ envelope.name }} ({{ envelope.unassignedTransactionCount }}
+              unassigned)
+            </div>
+
+            <Button
+              @click.stop="navigateTo(`/envelopes/${envelope.id}`)"
+              size="icon-sm"
+            >
+              <Search class="w-4 h-4" />
+            </Button>
+          </div>
+
+          <h2
+            v-if="unassignedTransactionEnvelopes.length === 0"
+            class="text-2xl font-bold flex gap-4"
+          >
+            <Check class="w-8 h-8" /> All transactions have a tax classification
+          </h2>
         </div>
       </div>
+      <div class="h-32"></div>
     </main>
 
     <AddPlanDialog v-model="showPlanDialog" />
@@ -78,39 +129,135 @@
         <div class="p-4"></div>
       </DialogContent>
     </Dialog>
+
+    <Card
+      v-if="selectedEnvelopes.length > 0"
+      class="fixed bottom-16 left-4 right-4 w-80 items-center flex justify-center z-50"
+    >
+      <CardContent class="flex flex-col items-start gap-4 p-4 w-80">
+        <h3 class="text-lg font-medium">
+          Assign {{ selectedEnvelopes.length }} Envelopes To:
+        </h3>
+        <div class="flex items-center gap-2 w-full">
+          <Select v-model="selectedEntity">
+            <SelectTrigger ref="planNameRef" class="w-full">
+              <SelectValue placeholder="Business or Personal?" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="entity in user.entities"
+                :key="entity.id"
+                :value="entity.id"
+              >
+                {{ entity.name }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <Button @click="assignEnvelopesToEntity()">
+            <Check class="w-4 h-4" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+
+    <Card
+      v-if="selectedTransactionEnvelopes.length > 0"
+      class="fixed bottom-16 left-4 right-4 w-80 items-center flex justify-center z-50"
+    >
+      <CardContent class="flex flex-col items-start gap-4 p-4 w-80">
+        <h3 class="text-lg font-medium">
+          Assign transactions in
+          {{ selectedTransactionEnvelopes.length }} envelope to:
+        </h3>
+        <div class="flex items-center gap-2 w-full">
+          <Select v-model="selectedEntity">
+            <SelectTrigger ref="planNameRef" class="w-full">
+              <SelectValue placeholder="Business or Personal?" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="entity in user.entities"
+                :key="entity.id"
+                :value="entity.id"
+              >
+                {{ entity.name }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <Button @click="assignEnvelopeTransactionsToEntity()">
+            <Check class="w-4 h-4" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   </ClientOnly>
 </template>
 
 <script setup>
-import { Mail, Plus } from "lucide-vue-next";
+import { Mail, Plus, Check, Search } from "lucide-vue-next";
 
 const { $auth, $api } = useNuxtApp();
 
 const user = computed(() => $auth && $auth.user);
-let accounts = computed(() => {
-  let accumulated = [];
-
-  let entities = user.value ? user.value.entities || [] : [];
-  if (entities.length === 0) return [];
-
-  for (let entity of entities) {
-    let accounts = entity.envelopes.filter((acc) => acc.type === "account");
-    accumulated = accumulated.concat(accounts);
-  }
-
-  return accumulated;
-});
 const planNameRef = useTemplateRef("planNameRef");
 
 const showPlanDialog = ref(false);
 const showAccountDialog = ref(false);
 const showEnvelopeDialog = ref(false);
 
+const unassignedEnvelopes = ref([]);
+const unassignedTransactionEnvelopes = ref([]);
+
+const selectedEnvelopes = computed(() =>
+  unassignedEnvelopes.value.filter((envelope) => envelope.selected),
+);
+const selectedEntity = ref(null);
+const selectedTransactionEnvelopes = computed(() =>
+  unassignedTransactionEnvelopes.value.filter((envelope) => envelope.selected),
+);
+
 function addPlan() {
   showPlanDialog.value = true;
+}
+
+async function assignEnvelopesToEntity() {
+  const entityId = selectedEntity.value;
+  if (!entityId) return;
+
+  let unassigned = await $api(`/envelopes/assign`, {
+    method: "POST",
+    body: { entityId, envelopeIds: selectedEnvelopes.value.map((e) => e.id) },
+  });
+
+  unassignedEnvelopes.value = unassigned;
+  selectedEntity.value = null;
+}
+
+async function assignEnvelopeTransactionsToEntity() {
+  const entityId = selectedEntity.value;
+  if (!entityId) return;
+
+  let unassigned = await $api(`/envelopes/assign-transactions`, {
+    method: "POST",
+    body: {
+      entityId,
+      envelopeIds: selectedTransactionEnvelopes.value.map((e) => e.id),
+    },
+  });
+  unassignedTransactionEnvelopes.value = unassigned;
+  selectedEntity.value = null;
 }
 
 function setup() {
   navigateTo("/setup");
 }
+
+onMounted(async () => {
+  if (user.value) {
+    unassignedEnvelopes.value = await $api("/envelopes/unassigned");
+    unassignedTransactionEnvelopes.value = await $api(
+      "/envelopes/unassigned-transactions",
+    );
+  }
+});
 </script>

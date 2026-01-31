@@ -44,30 +44,6 @@ class FileBucket:
 
         return file_key
 
-    async def upload_cover(
-        self,
-        bucket: Literal["covers"],
-        file: Annotated[UploadFile, File(description="Cover File")],
-        file_key: str,
-    ) -> str:
-        file_path: pathlib.Path = self.bucket_path / bucket / file_key
-        with file_path.open("wb") as uploaded:
-            uploaded.write(file.file.read())
-
-        # Resize the cover image
-        image = Image.open(file_path)
-        image.thumbnail((508, 660))
-
-        if image.mode == "RGBA":
-            image = image.convert("RGB")
-
-        key, _ = os.path.splitext(file_key)
-        file_key = key + "-thumb.jpg"
-        file_path = self.bucket_path / bucket / file_key
-        image.save(file_path)
-
-        return file_key
-
     async def get_bucket_file(
         self,
         _key: str,
@@ -76,7 +52,7 @@ class FileBucket:
         file_key = self.bucket_path / bucket / _key
 
         if not file_key.exists():
-            raise FileNotFoundException(err_message="File {} not found".format(_key))
+            raise FileNotFoundError("File {} not found".format(_key))
 
         return str(file_key)
 

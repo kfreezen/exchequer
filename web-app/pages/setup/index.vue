@@ -31,10 +31,21 @@
           amazing API that we can use to sync your plans directly into this
           dashboard.
         </p>
-        <p class="text-lg">
+        <p class="text-lg" v-if="exchequerPlans.length === 0">
           Now that your YNAB account is connected, we can import your plans.
         </p>
+        <p class="text-lg" v-else>
+          Now that your YNAB account is connected, you can import additional
+          plans. You already have
+          {{ exchequerPlans.length }} plan
+          {{ exchequerPlans.length === 1 ? "imported" : "imported" }}.
+        </p>
 
+        <NuxtLink to="/setup/data" v-if="exchequerPlans.length > 0">
+          <Button class="w-full"> Skip Importing Plans </Button>
+        </NuxtLink>
+
+        <div v-if="exchequerPlans.length > 0">or</div>
         <div v-if="ynabPlans.length > 0" class="w-full">
           <form
             @submit.prevent="importPlans"
@@ -57,8 +68,8 @@
               <SelectContent>
                 <SelectItem
                   v-for="plan in ynabPlans"
-                  :key="plan.id"
-                  :value="plan.id"
+                  :key="plan.importId"
+                  :value="plan.importId"
                 >
                   {{ plan.name }}
                 </SelectItem>

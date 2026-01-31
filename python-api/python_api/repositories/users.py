@@ -438,7 +438,7 @@ class UserRepository(Repository):
                 return None
 
         user = DbUser(**camelize(user))
-        user.subscription = await self.get_user_subscription(user.id)
+        user.subscription = await self.get_user_subscription(str(user.id))
 
         return user
 
@@ -467,7 +467,7 @@ class UserRepository(Repository):
         if len(db_user.sso_connections) == 1 and db_user.sso_connections[0] is None:
             db_user.sso_connections = []
 
-        db_user.subscription = await self.get_user_subscription(db_user.id)
+        db_user.subscription = await self.get_user_subscription(str(db_user.id))
         return db_user
 
     async def get_user_by_id(self, user_id: str) -> DbUser | None:
@@ -922,6 +922,26 @@ Enter this code: {code} into your verification form. This code expires in 15 min
                     "user_id": user_id,
                 },
             )
+
+    async def get_integration(self, user_id, integration_name: str) -> dict | None:
+        async with self.db.cursor() as cur:
+            await cur.execute(
+                f"""
+                SELECT integrations->%(integration_name)s as integration_data
+                FROM users
+                WHERE id = %(user_id)s
+                """,
+                {
+                    "integration_name": integration_name,
+                    "user_id": user_id,
+                },
+            )
+
+            res = await cur.fetchone()
+            if not res or res["integration_data"] is None:
+                return None
+
+            return res["integration_data"]
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

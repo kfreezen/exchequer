@@ -9,6 +9,8 @@ from redis.asyncio import Redis
 from python_api.mail import Mailer, EmailGenerator
 from python_api.models.emails import EmailType, AutomatedEmail
 
+from python_api.repositories.entities import EntitiesRepository
+from python_api.repositories.envelopes import EnvelopesRepository
 from python_api.repositories.users import UserRepository
 from python_api.repositories.automated_emails import AutomatedEmails
 
@@ -29,10 +31,12 @@ def schedule_email(
     async def _schedule_email():
         settings = Settings()
         db = await AsyncConnection.connect(settings.database_dsn, row_factory=dict_row)
-        user_repo = UserRepository(None, None, db, settings)
+        envelopes = EnvelopesRepository(db)
+        entities = EntitiesRepository(db, envelopes)
+        user_repo = UserRepository(None, None, db, settings, entities)
         automated_email_repo = AutomatedEmails(settings, db)
 
-        users = await user_repo.get_subscribed_users(EmailType(email_type))
+        users = await user_repo.get_email_subscribed_users(EmailType(email_type))
 
         for user in users:
             variables = {
@@ -81,7 +85,9 @@ def test_scheduled_emails(
         db = await AsyncConnection.connect(
             settings.database_dsn, row_factory=dict_row, autocommit=True
         )
-        user_repo = UserRepository(None, None, db, settings)
+        envelopes = EnvelopesRepository(db)
+        entities = EntitiesRepository(db, envelopes)
+        user_repo = UserRepository(None, None, db, settings, entities)
         automated_email_repo = AutomatedEmails(settings, db)
         mailer = Mailer(settings)
         email_gen = EmailGenerator(settings)
@@ -140,13 +146,17 @@ def init_subscriptions():
     async def _init_subscriptions():
         settings = Settings()
         db = await AsyncConnection.connect(settings.database_dsn, row_factory=dict_row)
-        user_repo = UserRepository(None, None, db, settings)
+        envelopes = EnvelopesRepository(db)
+        entities = EntitiesRepository(db, envelopes)
+        user_repo = UserRepository(None, None, db, settings, entities)
 
         users, _ = await user_repo.get_users()
 
         for user in users:
-            await user_repo.subscribe_user(str(user.id), EmailType.PROMOTIONAL)
-            await user_repo.subscribe_user(str(user.id), EmailType.TRANSACTIONAL)
+            await user_repo.subscribe_user_to_email(str(user.id), EmailType.PROMOTIONAL)
+            await user_repo.subscribe_user_to_email(
+                str(user.id), EmailType.TRANSACTIONAL
+            )
         await db.commit()
 
     asyncio.run(_init_subscriptions())
