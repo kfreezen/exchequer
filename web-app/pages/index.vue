@@ -43,6 +43,53 @@
         </button>-->
       </div>
       <div v-else class="flex flex-col gap-6">
+        <!-- YNAB Import Section -->
+        <div class="flex items-center justify-between">
+          <div></div>
+          <div class="flex items-center gap-2">
+            <Button
+              @click="importFromYnab(false)"
+              :disabled="importing"
+              variant="outline"
+            >
+              <RefreshCw class="w-4 h-4 mr-2" :class="{ 'animate-spin': importing }" />
+              {{ importing ? "Importing..." : "Sync from YNAB" }}
+            </Button>
+            <Button
+              @click="importFromYnab(true)"
+              :disabled="importing"
+              variant="outline"
+            >
+              Re-import All
+            </Button>
+          </div>
+        </div>
+
+        <!-- Import Progress -->
+        <Card v-if="importProgress.length > 0" class="mb-4">
+          <CardContent class="p-4">
+            <h3 class="text-lg font-medium mb-3">Import Progress</h3>
+            <ul class="space-y-2">
+              <li
+                v-for="(item, index) in importProgress"
+                :key="index"
+                class="flex items-center justify-between"
+              >
+                <span>{{ item.task }}</span>
+                <span
+                  v-if="item.status === 'completed' && item.count !== undefined"
+                  class="text-green-500"
+                >
+                  {{ item.count }} new entries
+                </span>
+                <span v-else-if="item.status === 'in-progress'" class="text-blue-500">
+                  In progress...
+                </span>
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+
         <div
           class="flex flex-col items-start justify-start gap-2"
           v-if="unassignedEnvelopes.length > 0"
@@ -194,7 +241,7 @@
 </template>
 
 <script setup>
-import { Mail, Plus, Check, Search } from "lucide-vue-next";
+import { Mail, Plus, Check, Search, RefreshCw } from "lucide-vue-next";
 
 const { $auth, $api } = useNuxtApp();
 
@@ -207,6 +254,9 @@ const showEnvelopeDialog = ref(false);
 
 const unassignedEnvelopes = ref([]);
 const unassignedTransactionEnvelopes = ref([]);
+
+const importing = ref(false);
+const importProgress = ref([]);
 
 const selectedEnvelopes = computed(() =>
   unassignedEnvelopes.value.filter((envelope) => envelope.selected),
@@ -246,6 +296,67 @@ async function assignEnvelopeTransactionsToEntity() {
   });
   unassignedTransactionEnvelopes.value = unassigned;
   selectedEntity.value = null;
+}
+
+async function importEntityType(entityType, taskName, full = false) {
+  const task = {
+    task: `Importing ${taskName}`,
+    status: "in-progress",
+    count: undefined,
+  };
+
+  importProgress.value.push(task);
+
+  try {
+    const url = full
+      ? `/api/ynab/import/${entityType}?full=true`
+      : `/api/ynab/import/${entityType}`;
+    const result = await $api(url, {
+      method: "POST",
+    });
+
+    task.count = 0;
+    for (const planId in result) {
+      task.count += result[planId][`${entityType}Imported`] || 0;
+    }
+    task.status = "completed";
+  } catch (error) {
+    task.status = "completed";
+    task.task = `Failed to import ${taskName}`;
+  }
+}
+
+async function importFromYnab(full = false) {
+  if (importing.value) return;
+
+  importing.value = true;
+  importProgress.value = [];
+
+  try {
+    await importEntityType("payees", "Payees", full);
+    await importEntityType("categories", "Categories", full);
+    await importEntityType("accounts", "Accounts", full);
+    await importEntityType("transactions", "Transactions", full);
+
+    importProgress.value.push({
+      task: full ? "Full re-import completed!" : "Import completed!",
+      status: "completed",
+    });
+
+    // Refresh unassigned data
+    unassignedEnvelopes.value = await $api("/envelopes/unassigned");
+    unassignedTransactionEnvelopes.value = await $api(
+      "/envelopes/unassigned-transactions",
+    );
+  } catch (error) {
+    console.error("Error importing from YNAB:", error);
+    importProgress.value.push({
+      task: "Import failed. Please try again.",
+      status: "completed",
+    });
+  } finally {
+    importing.value = false;
+  }
 }
 
 function setup() {

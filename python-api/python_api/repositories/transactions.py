@@ -167,6 +167,7 @@ class TransactionsRepository(Repository):
         "parent_transaction_id",
     ]
     FIELD_STRING = ", ".join([f"t.{f}" for f in FIELDS])
+    RAW_FIELD_STRING = ", ".join(FIELDS)
 
     async def get_transaction_by_import_id(self, import_id: str):
         async with self.db.cursor() as cur:
@@ -247,6 +248,7 @@ class TransactionsRepository(Repository):
                 FROM transactions t
                 LEFT JOIN payees p ON t.payee_id = p.id
                 WHERE t.user_id = %(user_id)s AND t.envelope_id = %(envelope_id)s
+                ORDER BY t.date DESC
                 """,
                 {"user_id": user_id, "envelope_id": envelope_id},
             )
@@ -261,7 +263,7 @@ class TransactionsRepository(Repository):
     ):
         async with self.db.cursor() as cur:
             await cur.execute(
-                f"""
+                """
                 UPDATE transactions
                 SET entity_id = %(entity_id)s
                 WHERE user_id = %(user_id)s AND id = ANY(%(transaction_ids)s)
@@ -274,3 +276,103 @@ class TransactionsRepository(Repository):
             )
 
             return
+
+    async def create_transaction(
+        self,
+        user_id: str,
+        amount: Decimal,
+        date,
+        description: str | None = None,
+        envelope_id: str | None = None,
+        entity_id: str | None = None,
+    ) -> Transaction:
+        async with self.db.cursor() as cur:
+            await cur.execute(
+                f"""
+                INSERT INTO transactions (
+                    id,
+                    user_id,
+                    amount,
+                    date,
+                    description,
+                    envelope_id,
+                    entity_id,
+                    created_at,
+                    updated_at
+                )
+                VALUES (
+                    %(id)s,
+                    %(user_id)s,
+                    %(amount)s,
+                    %(date)s,
+                    %(description)s,
+                    %(envelope_id)s,
+                    %(entity_id)s,
+                    NOW(),
+                    NOW()
+                )
+                RETURNING {self.RAW_FIELD_STRING},
+                    (SELECT p.name FROM payees p WHERE p.id = payee_id) AS payee_name
+                """,
+                {
+                    "id": uuid4(),
+                    "user_id": user_id,
+                    "amount": str(amount),
+                    "date": date,
+                    "description": description,
+                    "envelope_id": envelope_id,
+                    "entity_id": entity_id,
+                },
+            )
+
+            row = await cur.fetchone()
+            return Transaction.model_validate(camelize(row))
+
+    async def update_transaction(
+        self,
+        user_id: str,
+        transaction_id: str,
+        amount: Decimal | None = None,
+        date=None,
+        description: str | None = None,
+        envelope_id: str | None = None,
+        entity_id: str | None = None,
+    ) -> Transaction | None:
+        # Build dynamic SET clause based on provided fields
+        set_clauses = ["updated_at = NOW()"]
+        params = {"user_id": user_id, "transaction_id": transaction_id}
+
+        if amount is not None:
+            set_clauses.append("amount = %(amount)s")
+            params["amount"] = str(amount)
+        if date is not None:
+            set_clauses.append("date = %(date)s")
+            params["date"] = date
+        if description is not None:
+            set_clauses.append("description = %(description)s")
+            params["description"] = description
+        if envelope_id is not None:
+            set_clauses.append("envelope_id = %(envelope_id)s")
+            params["envelope_id"] = envelope_id
+        if entity_id is not None:
+            set_clauses.append("entity_id = %(entity_id)s")
+            params["entity_id"] = entity_id
+
+        set_clause = ", ".join(set_clauses)
+
+        async with self.db.cursor() as cur:
+            await cur.execute(
+                f"""
+                UPDATE transactions t
+                SET {set_clause}
+                WHERE t.id = %(transaction_id)s AND t.user_id = %(user_id)s
+                RETURNING {self.FIELD_STRING},
+                    (SELECT p.name FROM payees p WHERE p.id = t.payee_id) AS payee_name
+                """,
+                params,
+            )
+
+            row = await cur.fetchone()
+            if row:
+                return Transaction.model_validate(camelize(row))
+            return None

@@ -121,6 +121,21 @@ class EnvelopesRepository(Repository):
             envelopes = [Envelope(**camelize(env)) async for env in cur]
             return envelopes
 
+    async def get_all_user_envelopes(self, user_id: str):
+        async with self.db.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT e.id, e.entity_id, e.name, e.created_at, e.updated_at
+                FROM envelopes e
+                WHERE e.user_id = %(user_id)s
+                ORDER BY e.name
+                """,
+                {"user_id": user_id},
+            )
+
+            envelopes = [Envelope(**camelize(env)) async for env in cur]
+            return envelopes
+
     async def insert_envelope(self, user_id, envelope: Envelope) -> Envelope:
         async with self.db.cursor() as cur:
             await cur.execute(

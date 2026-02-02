@@ -180,17 +180,17 @@ class YNABConnector:
 
         return payees
 
-    async def get_transactions(self, plan_id: str) -> list:
-        last_server_knowledge = await self.transactions.get_last_import_revision(
-            self.user_id, "ynab"
-        )
-
+    async def get_transactions(
+        self, plan_id: str, last_server_knowledge: int | None
+    ) -> list:
         async with self._client() as client:
             res = await client.get(
                 f"/budgets/{plan_id}/transactions",
                 params={
                     "last_knowledge_of_server": last_server_knowledge,
-                },
+                }
+                if last_server_knowledge is not None
+                else None,
             )
 
             if res.status_code != 200:
@@ -246,10 +246,12 @@ class YNABConnector:
 
         return transactions
 
-    async def import_payees(self, ynab_plan_id: str):
-        last_server_knowledge = await self.payees.get_last_import_revision(
-            self.user_id, "ynab"
-        )
+    async def import_payees(self, ynab_plan_id: str, full_reimport: bool = False):
+        last_server_knowledge = None
+        if not full_reimport:
+            last_server_knowledge = await self.payees.get_last_import_revision(
+                self.user_id, "ynab"
+            )
 
         payees = await self.get_payees(ynab_plan_id, last_server_knowledge)
 
@@ -262,10 +264,12 @@ class YNABConnector:
             payees[-1].import_revision if payees else last_server_knowledge,
         )
 
-    async def import_envelopes(self, ynab_plan_id: str):
-        last_server_knowledge = await self.envelopes.get_last_import_revision(
-            self.user_id, "ynab"
-        )
+    async def import_envelopes(self, ynab_plan_id: str, full_reimport: bool = False):
+        last_server_knowledge = None
+        if not full_reimport:
+            last_server_knowledge = await self.envelopes.get_last_import_revision(
+                self.user_id, "ynab"
+            )
 
         categories = await self.get_categories(ynab_plan_id, last_server_knowledge)
 
@@ -278,10 +282,12 @@ class YNABConnector:
             categories[-1].import_revision if categories else last_server_knowledge,
         )
 
-    async def import_accounts(self, ynab_plan_id: str):
-        last_server_knowledge = await self.accounts.get_last_import_revision(
-            self.user_id, "ynab"
-        )
+    async def import_accounts(self, ynab_plan_id: str, full_reimport: bool = False):
+        last_server_knowledge = None
+        if not full_reimport:
+            last_server_knowledge = await self.accounts.get_last_import_revision(
+                self.user_id, "ynab"
+            )
 
         accounts = await self.get_accounts(ynab_plan_id, last_server_knowledge)
         for account in accounts:
@@ -293,12 +299,14 @@ class YNABConnector:
             accounts[-1].import_revision if accounts else last_server_knowledge,
         )
 
-    async def import_transactions(self, ynab_plan_id: str):
-        last_server_knowledge = await self.transactions.get_last_import_revision(
-            self.user_id, "ynab"
-        )
+    async def import_transactions(self, ynab_plan_id: str, full_reimport: bool = False):
+        last_server_knowledge = None
+        if not full_reimport:
+            last_server_knowledge = await self.transactions.get_last_import_revision(
+                self.user_id, "ynab"
+            )
 
-        transactions = await self.get_transactions(ynab_plan_id)
+        transactions = await self.get_transactions(ynab_plan_id, last_server_knowledge)
 
         for transaction in transactions:
             await self.transactions.import_transaction(self.user_id, transaction)

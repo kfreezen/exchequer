@@ -11,6 +11,13 @@
         </SidebarMenuButton>
       </NuxtLink>
 
+      <NuxtLink to="/envelopes" class="flex items-center gap-2 px-4 py-3">
+        <SidebarMenuButton class="text-lg">
+          <Inbox class="w-5 h-5" />
+          Envelopes
+        </SidebarMenuButton>
+      </NuxtLink>
+
       <NuxtLink to="/reports" class="flex items-center gap-2 px-4 py-3">
         <SidebarMenuButton class="text-lg">
           <NotebookText class="w-5 h-5" />
@@ -60,7 +67,7 @@
 </template>
 
 <script setup>
-import { House, User, LogOut, NotebookText } from "lucide-vue-next";
+import { House, Inbox, User, LogOut, NotebookText } from "lucide-vue-next";
 
 const { $auth } = useNuxtApp();
 

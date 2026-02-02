@@ -11,7 +11,7 @@ from python_api.dependencies import (
     requires_valid_subscription,
 )
 
-from . import bucket, users, entities, ynab, plans, envelopes, reports
+from . import bucket, users, entities, ynab, plans, envelopes, reports, transactions
 
 app_router = APIRouter(
     prefix="",
@@ -35,5 +35,6 @@ authorized_router.include_router(ynab.router)
 authorized_router.include_router(plans.router)
 authorized_router.include_router(envelopes.router)
 authorized_router.include_router(reports.router)
+authorized_router.include_router(transactions.router)
 
 app_router.include_router(authorized_router)

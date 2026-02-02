@@ -40,6 +40,7 @@ async def import_ynab_payees(
     ynab: YNABConnectorDep,
     plans_repo: PlansRepositoryDep,
     valid_jwt: ValidJWTDep,
+    full: bool = False,
 ):
     plans = await plans_repo.get_user_plans(valid_jwt["sub"])
 
@@ -47,7 +48,7 @@ async def import_ynab_payees(
 
     for plan in plans:
         payees_imported, first_knowledge, last_knowledge = await ynab.import_payees(
-            str(plan.import_id)
+            str(plan.import_id), full_reimport=full
         )
 
         results[plan.id] = {
@@ -68,6 +69,7 @@ async def import_ynab_categories(
     ynab: YNABConnectorDep,
     plans_repo: PlansRepositoryDep,
     valid_jwt: ValidJWTDep,
+    full: bool = False,
 ):
     plans = await plans_repo.get_user_plans(valid_jwt["sub"])
 
@@ -78,7 +80,7 @@ async def import_ynab_categories(
             categories_imported,
             first_knowledge,
             last_knowledge,
-        ) = await ynab.import_envelopes(str(plan.import_id))
+        ) = await ynab.import_envelopes(str(plan.import_id), full_reimport=full)
 
         results[plan.id] = {
             "categoriesImported": categories_imported,
@@ -98,6 +100,7 @@ async def import_ynab_accounts(
     ynab: YNABConnectorDep,
     plans_repo: PlansRepositoryDep,
     valid_jwt: ValidJWTDep,
+    full: bool = False,
 ):
     plans = await plans_repo.get_user_plans(valid_jwt["sub"])
 
@@ -108,7 +111,7 @@ async def import_ynab_accounts(
             accounts_imported,
             first_knowledge,
             last_knowledge,
-        ) = await ynab.import_accounts(str(plan.import_id))
+        ) = await ynab.import_accounts(str(plan.import_id), full_reimport=full)
 
         results[plan.id] = {
             "accountsImported": accounts_imported,
@@ -128,6 +131,7 @@ async def import_ynab_transactions(
     ynab: YNABConnectorDep,
     plans_repo: PlansRepositoryDep,
     valid_jwt: ValidJWTDep,
+    full: bool = False,
 ):
     plans = await plans_repo.get_user_plans(valid_jwt["sub"])
 
@@ -138,7 +142,7 @@ async def import_ynab_transactions(
             transactions_imported,
             first_knowledge,
             last_knowledge,
-        ) = await ynab.import_transactions(str(plan.import_id))
+        ) = await ynab.import_transactions(str(plan.import_id), full_reimport=full)
 
         results[plan.id] = {
             "transactionsImported": transactions_imported,

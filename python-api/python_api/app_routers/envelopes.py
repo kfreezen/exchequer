@@ -11,6 +11,14 @@ from python_api.models.envelopes import EnvelopeWithTransactions
 router = APIRouter(prefix="/envelopes", tags=["Envelopes"])
 
 
+@router.get("")
+async def get_all_envelopes(
+    envelopes_repo: EnvelopesRepositoryDep, valid_jwt: ValidJWTDep
+):
+    envelopes = await envelopes_repo.get_all_user_envelopes(valid_jwt["sub"])
+    return envelopes
+
+
 @router.get("/unassigned")
 async def get_unassigned_envelopes(
     envelopes_repo: EnvelopesRepositoryDep, valid_jwt: ValidJWTDep
